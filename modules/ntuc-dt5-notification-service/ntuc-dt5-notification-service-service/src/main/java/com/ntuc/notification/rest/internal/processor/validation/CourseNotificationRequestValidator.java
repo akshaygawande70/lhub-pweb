@@ -15,23 +15,42 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Validates the inbound CLS → PWEB notification request.
+ * Validates inbound CLS → PWEB notification requests before any downstream processing occurs.
+ *
+ * <p><b>Business purpose:</b> Protects course content and publishing workflows by rejecting malformed or
+ * semantically invalid notifications that could create incorrect updates or noisy audit trails.</p>
+ *
+ * <p><b>Technical purpose:</b> Applies strict structural and field-level validation to {@link CourseEventList}
+ * and each contained {@link CourseEvent}, returning a deterministic list of errors suitable for
+ * partial-success event processing.</p>
+ *
+ * <p>Design notes:
+ * <ul>
+ *   <li>Pure Java, deterministic, and unit-testable (no OSGi, no Liferay dependencies).</li>
+ *   <li>Validation is non-throwing by default; parsing errors are translated into validation errors.</li>
+ *   <li>Timestamp parsing is strict (non-lenient) to prevent ambiguous dates.</li>
+ * </ul>
+ * </p>
  *
  * Mandatory rules (strict):
- * - wrapper required
- * - events[] required and not empty
- * - notificationId required (GUID)
- * - eventType required: published | unpublished | changed | inactive
- * - timestamp required: dd/MM/yyyy HH:mm:ss
- * - courses[] required and not empty
- * - each courseCode required (trimmed, length <= 20)
- * - courseType required and must be TMS
+ * <ul>
+ *   <li>wrapper required</li>
+ *   <li>events[] required and not empty</li>
+ *   <li>notificationId required (GUID)</li>
+ *   <li>eventType required: published | unpublished | changed | inactive</li>
+ *   <li>timestamp required: dd/MM/yyyy HH:mm:ss</li>
+ *   <li>courses[] required and not empty</li>
+ *   <li>each courseCode required (trimmed, length &lt;= 20)</li>
+ *   <li>courseType required and must be TMS</li>
+ * </ul>
  *
  * Conditional rules:
- * - changeFrom[] required when eventType=changed
- * - changeFrom values must be within the allowed enum set
+ * <ul>
+ *   <li>changeFrom[] required when eventType=changed</li>
+ *   <li>changeFrom values must be within the allowed enum set</li>
+ * </ul>
  *
- * Pure Java - unit testable (no OSGi, no Liferay).
+ * @author @akshaygawande
  */
 public final class CourseNotificationRequestValidator {
 
@@ -53,6 +72,9 @@ public final class CourseNotificationRequestValidator {
     private static final Set<String> CHANGE_FROM_ALLOWED = new HashSet<>(
             Arrays.asList("course", "pricingTable", "fundingEligibilityCriteria", "subsidy"));
 
+    /**
+     * Strict timestamp parser. Not thread-safe; validator instances are expected to be request-scoped.
+     */
     private final SimpleDateFormat tsFormat;
 
     public CourseNotificationRequestValidator() {
@@ -64,6 +86,23 @@ public final class CourseNotificationRequestValidator {
         tsFormat.setLenient(false);
     }
 
+    /**
+     * Validates the complete wrapper request.
+     *
+     * <p><b>Business purpose:</b> Ensures the notification payload is structurally complete before
+     * any course-level processing begins.</p>
+     *
+     * <p><b>Technical purpose:</b> Validates wrapper and delegates to per-event validation.</p>
+     *
+     * <p><b>Inputs/Invariants:</b> {@code wrapper} may be null.</p>
+     *
+     * <p><b>Side effects:</b> None.</p>
+     *
+     * <p><b>Audit behavior:</b> None.</p>
+     *
+     * <p><b>Return semantics:</b> Returns {@link ValidationResult#ok()} when valid; otherwise a failed
+     * result containing one or more {@link EventError} entries.</p>
+     */
     public ValidationResult validate(CourseEventList wrapper) {
         if (wrapper == null) {
             return ValidationResult.failedGlobal("Request body is required");
@@ -89,7 +128,18 @@ public final class CourseNotificationRequestValidator {
 
     /**
      * Public per-event validation to enable partial_success processing.
-     * Returns an empty list if the event is valid.
+     *
+     * <p><b>Business purpose:</b> Allows individual events to be accepted or rejected independently.</p>
+     *
+     * <p><b>Technical purpose:</b> Exposes deterministic event-level validation.</p>
+     *
+     * <p><b>Inputs/Invariants:</b> {@code e} may be null.</p>
+     *
+     * <p><b>Side effects:</b> None.</p>
+     *
+     * <p><b>Audit behavior:</b> None.</p>
+     *
+     * <p><b>Return semantics:</b> Returns an empty list when valid; otherwise a list of errors.</p>
      */
     public List<EventError> validateEvent(CourseEvent e) {
         return validateEventInternal(e);
@@ -104,21 +154,17 @@ public final class CourseNotificationRequestValidator {
         String eventType = safeLower(e.getEventType());
         String timestamp = safe(e.getTimestamp());
 
-        // IMPORTANT:
-        // 1) Even if the error is header-level, try to surface courseCode for ops/debugging.
-        // 2) This must be derived from courses[] because event doesn't have a native courseCode.
+        // Even if the error is header-level, try to surface courseCode for ops/debugging.
         final String derivedCourseCode = deriveFirstCourseCode(e);
 
         List<EventError> errs = new ArrayList<>();
 
-        // notificationId
         if (isBlank(notificationId)) {
             errs.add(new EventError("", derivedCourseCode, "notificationId is required"));
         } else if (!GUID.matcher(notificationId).matches()) {
             errs.add(new EventError(notificationId, derivedCourseCode, "notificationId must be a valid GUID"));
         }
 
-        // eventType
         if (isBlank(eventType)) {
             errs.add(new EventError(notificationIdOrEmpty(notificationId), derivedCourseCode, "eventType is required"));
         } else if (!EVENT_TYPES.contains(eventType)) {
@@ -126,7 +172,6 @@ public final class CourseNotificationRequestValidator {
                     "eventType must be one of: published, unpublished, changed, inactive"));
         }
 
-        // timestamp
         if (isBlank(timestamp)) {
             errs.add(new EventError(notificationIdOrEmpty(notificationId), derivedCourseCode, "timestamp is required"));
         } else if (!isValidTimestamp(timestamp)) {
@@ -134,7 +179,6 @@ public final class CourseNotificationRequestValidator {
                     "timestamp must match format " + TS_PATTERN));
         }
 
-        // courses[]
         List<CourseEvent.Course> courses = e.getCourses();
         if (courses == null || courses.isEmpty()) {
             errs.add(new EventError(notificationIdOrEmpty(notificationId), "",
@@ -167,7 +211,6 @@ public final class CourseNotificationRequestValidator {
             }
         }
 
-        // changeFrom[] (only for changed)
         if ("changed".equals(eventType)) {
             List<String> changeFrom = e.getChangeFrom();
             if (changeFrom == null || changeFrom.isEmpty()) {
@@ -192,12 +235,6 @@ public final class CourseNotificationRequestValidator {
         return errs;
     }
 
-    /**
-     * Derives a courseCode for error reporting even when validation fails before "normalization".
-     * Deterministic rule:
-     * - first non-blank courses[].courseCode (trimmed)
-     * - else empty string
-     */
     private static String deriveFirstCourseCode(CourseEvent e) {
         if (e == null) {
             return "";
@@ -258,7 +295,9 @@ public final class CourseNotificationRequestValidator {
         private ValidationResult(boolean valid, String message, List<EventError> eventErrors) {
             this.valid = valid;
             this.message = message;
-            this.eventErrors = (eventErrors == null) ? Collections.<EventError>emptyList() : eventErrors;
+            this.eventErrors = (eventErrors == null)
+                    ? Collections.<EventError>emptyList()
+                    : eventErrors;
         }
 
         public static ValidationResult ok() {

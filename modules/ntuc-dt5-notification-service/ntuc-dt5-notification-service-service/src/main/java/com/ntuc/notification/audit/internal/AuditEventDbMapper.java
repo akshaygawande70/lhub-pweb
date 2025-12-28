@@ -15,28 +15,72 @@ import java.util.Map;
 import javax.sql.rowset.serial.SerialBlob;
 
 /**
- * Maps immutable {@link AuditEvent} into ServiceBuilder {@link AuditLog} row.
+ * Maps immutable {@link AuditEvent} into a ServiceBuilder {@link AuditLog} entity.
  *
- * Non-negotiables:
- * - No legacy "action/description" fields.
- * - Blob columns are stored as UTF-8 JSON/text inside a java.sql.Blob.
- * - Mapping must be deterministic and safe (no throwing).
+ * <p><strong>Business purpose:</strong>
+ * Provides a single, deterministic translation layer that persists audit trail data
+ * for compliance, troubleshooting, alert deduplication, and operational visibility.</p>
  *
- * JUnit-testable: JSON serialization is pure Java.
+ * <p><strong>Technical purpose:</strong>
+ * Converts API-layer audit events into DB-safe ServiceBuilder fields while enforcing
+ * column constraints, UTF-8 Blob encoding, and failure isolation.</p>
+ *
+ * <p>Design guarantees:</p>
+ * <ul>
+ *   <li>No legacy action/description fields are used.</li>
+ *   <li>All JSON/text payloads are stored as UTF-8 {@link Blob}.</li>
+ *   <li>Mapping never throws; failures degrade safely to null/empty.</li>
+ * </ul>
+ *
+ * <p>This class is plain Java and fully unit-testable.</p>
+ *
+ * @author @akshaygawande
  */
 public class AuditEventDbMapper {
 
+    /**
+     * Maximum allowed JSON size for details payload before truncation.
+     */
     static final int MAX_DETAILS_JSON_CHARS = 8000;
 
-    // Keep this aligned with DB column size (Liferay default String is often 75 unless customized)
+    /**
+     * Default Liferay varchar length used for summary-style columns.
+     */
     private static final int DB_VARCHAR_75 = 75;
 
     /**
-     * Persisted DB fingerprint MUST be fixed-length.
-     * SHA-256 hex is always 64 chars and safe for default varchar sizes.
+     * SHA-256 hex length. Stored fingerprints must be fixed-length.
      */
     private static final int SHA256_HEX_LEN = 64;
 
+    /**
+     * Maps values from an {@link AuditEvent} into an {@link AuditLog} row.
+     *
+     * <p><strong>Business purpose:</strong>
+     * Persists a single audit record representing a workflow step or alert outcome.</p>
+     *
+     * <p><strong>Technical purpose:</strong>
+     * Copies, normalizes, truncates, and encodes event fields into ServiceBuilder-safe
+     * representations without throwing exceptions.</p>
+     *
+     * <p><strong>Inputs / invariants:</strong></p>
+     * <ul>
+     *   <li>Both parameters may be null; method is no-op in that case.</li>
+     *   <li>AuditEvent is treated as immutable.</li>
+     * </ul>
+     *
+     * <p><strong>Side effects:</strong></p>
+     * <ul>
+     *   <li>Mutates the provided {@link AuditLog} entity.</li>
+     *   <li>Creates {@link Blob} instances for large text fields.</li>
+     * </ul>
+     *
+     * <p><strong>Audit behavior:</strong>
+     * This method does not emit audit events; it is invoked as part of audit persistence.</p>
+     *
+     * <p><strong>Return semantics:</strong>
+     * Void; never throws.</p>
+     */
     public void mapInto(AuditLog row, AuditEvent event) {
         if (row == null || event == null) {
             return;
@@ -83,15 +127,15 @@ public class AuditEventDbMapper {
         row.setErrorMessage(nullable(fitDbVarchar(event.getErrorMessage())));
         row.setExceptionClass(nullable(event.getExceptionClass()));
 
-        // --- Email dedupe fingerprint (ONLY for email outcomes) ---
-        // IMPORTANT: DB column stores HASH ONLY (fixed length). Raw stays in detailsJson.
+        // --- Email alert dedupe fingerprint ---
+        // Stored as SHA-256 hash only; raw fingerprint remains in detailsJson
         row.setAlertFingerprint(nullable(resolveAlertFingerprintHash(event)));
 
-        // --- Stack ---
+        // --- Stack trace ---
         row.setStackTraceHash(nullable(event.getStackTraceHash()));
         row.setStackTraceTruncated(toSqlBlob(nullable(event.getStackTraceTruncated())));
 
-        // --- Details ---
+        // --- Details JSON ---
         Map<String, String> merged = new LinkedHashMap<String, String>();
         if (event.getDetails() != null && !event.getDetails().isEmpty()) {
             merged.putAll(event.getDetails());
@@ -104,13 +148,16 @@ public class AuditEventDbMapper {
     }
 
     /**
-     * Returns SHA-256 hex of the raw alert fingerprint for DB storage.
+     * Resolves and hashes the alert fingerprint for DB storage.
      *
-     * Raw fingerprint is expected in details under:
-     * - "fingerprint" (preferred)
-     * - "dedupeFingerprint" (backward compatible)
+     * <p><strong>Business purpose:</strong>
+     * Enables deterministic deduplication of email alerts.</p>
      *
-     * Returns null when not an EMAIL_* outcome record.
+     * <p><strong>Technical purpose:</strong>
+     * Extracts the raw fingerprint from details and stores only its SHA-256 hash.</p>
+     *
+     * <p><strong>Return semantics:</strong>
+     * Returns null when not applicable or invalid.</p>
      */
     private static String resolveAlertFingerprintHash(AuditEvent e) {
         String raw = resolveAlertFingerprintRaw(e);
@@ -126,12 +173,13 @@ public class AuditEventDbMapper {
         return hex;
     }
 
+    /**
+     * Extracts the raw alert fingerprint from the event details.
+     *
+     * <p>Applicable only for {@link AuditCategory#ALERT_EMAIL} outcomes.</p>
+     */
     private static String resolveAlertFingerprintRaw(AuditEvent e) {
-        if (e == null) {
-            return null;
-        }
-
-        if (e.getCategory() != AuditCategory.ALERT_EMAIL) {
+        if (e == null || e.getCategory() != AuditCategory.ALERT_EMAIL) {
             return null;
         }
 
@@ -151,14 +199,12 @@ public class AuditEventDbMapper {
             fp = e.getDetails().get("dedupeFingerprint");
         }
 
-        if (fp == null) {
-            return null;
-        }
-
-        fp = fp.trim();
-        return fp.isEmpty() ? null : fp;
+        return nullable(fp);
     }
 
+    /**
+     * Serializes a key-value map into a compact JSON object string.
+     */
     static String toDetailsJson(Map<String, String> details) {
         if (details == null || details.isEmpty()) {
             return "{}";
@@ -189,20 +235,24 @@ public class AuditEventDbMapper {
         return sb.toString();
     }
 
+    /**
+     * Converts UTF-8 text into a SQL {@link Blob}.
+     */
     private static Blob toSqlBlob(String text) {
         if (text == null) {
             return null;
         }
-
         try {
-            byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-            return new SerialBlob(bytes);
+            return new SerialBlob(text.getBytes(StandardCharsets.UTF_8));
         }
         catch (Exception ignore) {
             return null;
         }
     }
 
+    /**
+     * Escapes a string for safe JSON embedding.
+     */
     private static String escapeJson(String s) {
         if (s == null) {
             return "";
@@ -212,37 +262,26 @@ public class AuditEventDbMapper {
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             switch (c) {
-                case '"':
-                    out.append("\\\"");
-                    break;
-                case '\\':
-                    out.append("\\\\");
-                    break;
-                case '\n':
-                    out.append("\\n");
-                    break;
-                case '\r':
-                    out.append("\\r");
-                    break;
-                case '\t':
-                    out.append("\\t");
-                    break;
-                default:
-                    out.append(c);
+                case '"': out.append("\\\""); break;
+                case '\\': out.append("\\\\"); break;
+                case '\n': out.append("\\n"); break;
+                case '\r': out.append("\\r"); break;
+                case '\t': out.append("\\t"); break;
+                default: out.append(c);
             }
         }
         return out.toString();
     }
 
+    /**
+     * Truncates text to DB varchar limits.
+     */
     private static String fitDbVarchar(String s) {
         if (s == null) {
             return "";
         }
         s = s.trim();
-        if (s.length() <= DB_VARCHAR_75) {
-            return s;
-        }
-        return s.substring(0, DB_VARCHAR_75);
+        return (s.length() <= DB_VARCHAR_75) ? s : s.substring(0, DB_VARCHAR_75);
     }
 
     private static String safeEnum(Enum<?> e) {
@@ -254,11 +293,16 @@ public class AuditEventDbMapper {
     }
 
     private static String nullable(String s) {
-        if (s == null) return null;
+        if (s == null) {
+            return null;
+        }
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }
 
+    /**
+     * Computes SHA-256 hex digest.
+     */
     private static String sha256Hex(String raw) {
         if (raw == null) {
             return null;
@@ -270,8 +314,7 @@ public class AuditEventDbMapper {
 
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(s.getBytes(StandardCharsets.UTF_8));
-            return toHex(digest);
+            return toHex(md.digest(s.getBytes(StandardCharsets.UTF_8)));
         }
         catch (Exception ignore) {
             return null;

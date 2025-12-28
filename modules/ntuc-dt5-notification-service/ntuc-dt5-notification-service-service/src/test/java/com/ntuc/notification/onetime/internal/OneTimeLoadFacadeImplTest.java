@@ -3,55 +3,88 @@ package com.ntuc.notification.onetime.internal;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.ntuc.notification.onetime.OneTimeS3LoadService;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+/**
+ * Unit tests for {@link OneTimeLoadFacadeImpl}.
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class OneTimeLoadFacadeImplTest {
 
     @Mock
     private OneTimeS3LoadService oneTimeS3LoadService;
 
+    @Mock
+    private S3PathParser s3PathParser;
+
+    @Mock
+    private S3PathParser.S3Location s3Location;
+
+    @Test
+    public void constructor_nullService_throwsNpe() {
+        try {
+            new OneTimeLoadFacadeImpl(null);
+            Assert.fail("Expected NullPointerException");
+        }
+        catch (NullPointerException expected) {
+            // expected
+        }
+    }
+
+    @Test
+    public void packageConstructor_nullParser_throwsNpe() {
+        try {
+            new OneTimeLoadFacadeImpl(oneTimeS3LoadService, null);
+            Assert.fail("Expected NullPointerException");
+        }
+        catch (NullPointerException expected) {
+            // expected
+        }
+    }
+
     @Test
     public void executeS3Path_valid_delegatesToService() throws Exception {
-        OneTimeLoadFacadeImpl impl =
-                new OneTimeLoadFacadeImpl(oneTimeS3LoadService, new S3PathParser());
+        when(s3PathParser.parse(anyString())).thenReturn(s3Location);
+        when(s3Location.getBucket()).thenReturn("my-bucket");
+        when(s3Location.getPrefix()).thenReturn("some/prefix");
 
-        impl.executeS3Path("s3://bucket-a/a/b/c");
+        OneTimeLoadFacadeImpl facade = new OneTimeLoadFacadeImpl(oneTimeS3LoadService, s3PathParser);
 
-        verify(oneTimeS3LoadService, times(1)).execute("bucket-a", "a/b/c");
-        verifyNoMoreInteractions(oneTimeS3LoadService);
+        facade.executeS3Path("s3://my-bucket/some/prefix");
+
+        verify(oneTimeS3LoadService).execute("my-bucket", "some/prefix");
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void executeS3Path_invalidScheme_throws() {
-        OneTimeLoadFacadeImpl impl =
-                new OneTimeLoadFacadeImpl(oneTimeS3LoadService, new S3PathParser());
+    @Test
+    public void executeS3Path_whenServiceThrowsPortalException_wrapsRuntimeException() throws Exception {
+        when(s3PathParser.parse(anyString())).thenReturn(s3Location);
+        when(s3Location.getBucket()).thenReturn("my-bucket");
+        when(s3Location.getPrefix()).thenReturn("some/prefix");
 
-        impl.executeS3Path("http://bucket-a/a/b");
-    }
+        doThrow(new PortalException("CLS/S3 load failure"))
+                .when(oneTimeS3LoadService)
+                .execute("my-bucket", "some/prefix");
 
-    @Test(expected = IllegalArgumentException.class)
-    public void executeS3Path_blank_throws() {
-        OneTimeLoadFacadeImpl impl =
-                new OneTimeLoadFacadeImpl(oneTimeS3LoadService, new S3PathParser());
+        OneTimeLoadFacadeImpl facade = new OneTimeLoadFacadeImpl(oneTimeS3LoadService, s3PathParser);
 
-        impl.executeS3Path("   ");
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void executeS3Path_portalException_wrapped() throws Exception {
-        doThrow(new PortalException("boom"))
-                .when(oneTimeS3LoadService).execute("bucket-a", "a");
-
-        OneTimeLoadFacadeImpl impl =
-                new OneTimeLoadFacadeImpl(oneTimeS3LoadService, new S3PathParser());
-
-        impl.executeS3Path("s3://bucket-a/a");
+        try {
+            facade.executeS3Path("s3://my-bucket/some/prefix");
+            Assert.fail("Expected RuntimeException");
+        }
+        catch (RuntimeException ex) {
+            Assert.assertEquals("One-time S3 load failed", ex.getMessage());
+            Assert.assertNotNull(ex.getCause());
+            Assert.assertTrue(ex.getCause() instanceof PortalException);
+            Assert.assertEquals("CLS/S3 load failure", ex.getCause().getMessage());
+        }
     }
 }

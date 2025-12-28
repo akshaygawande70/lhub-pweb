@@ -1,18 +1,17 @@
 package com.ntuc.notification.audit.api.constants;
 
 /**
- * Audit category = domain/subsystem classification.
+ * AuditCategory groups events by subsystem ownership (who should action it).
  *
- * <p>IMPORTANT:
- * - Category is NOT the outcome (success/failure).
- * - Outcome is expressed via:
- *   - severity (INFO/WARNING/ERROR)
- *   - status (STARTED/SUCCESS/FAILED/PARTIAL/etc.)
- *   - errorCode / errorMessage / exceptionClass (for failures)
+ * <p>Selection rule:
+ * - Use CLS for OAuth/HTTP/payload/contract issues related to CLS integration.
+ * - Use JOURNAL_ARTICLE for DDM/template/XML/JournalArticle persistence issues.
+ * - Use DT5_FLOW for orchestration/routing/validation/execution coordination not belonging to CLS/JA.
+ * - Use ALERT_EMAIL only for the audit-driven email pipeline outcomes (sent/suppressed/failed/dedupe).
  *
- * <p>Email alert categories (CLS_FAILURE / JA_FAILURE / DT5_FAILURE)
- * must NOT live here; those belong to AlertEmailCategory.</p>
+ * <p>Category is orthogonal to step/status/severity.
  */
+
 public enum AuditCategory {
 
     /**

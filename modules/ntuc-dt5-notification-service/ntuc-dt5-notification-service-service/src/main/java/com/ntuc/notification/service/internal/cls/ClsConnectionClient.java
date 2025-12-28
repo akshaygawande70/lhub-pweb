@@ -11,7 +11,6 @@ import com.ntuc.notification.audit.api.constants.AuditErrorCode;
 import com.ntuc.notification.audit.api.constants.AuditSeverity;
 import com.ntuc.notification.audit.api.constants.AuditStatus;
 import com.ntuc.notification.audit.api.constants.AuditStep;
-
 import com.ntuc.notification.constants.NotificationType;
 import com.ntuc.notification.constants.ParameterKeyEnum;
 import com.ntuc.notification.dto.cls.ClsAccessTokenResponse;
@@ -24,7 +23,6 @@ import com.ntuc.notification.service.internal.http.HttpExecutor;
 import com.ntuc.notification.service.internal.http.HttpResponse;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -36,29 +34,65 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Plain Java core that can be unit-tested without OSGi.
+ * CLS integration client that performs HTTP calls and emits audit events for every meaningful outcome.
  *
- * Rule:
- * - No direct emails from here.
- * - Write audit events; centralized AuditEmailTriggerImpl decides sending/dedupe/cooldown.
+ * <p><b>Business purpose:</b> Fetch course details and schedules from CLS so NTUC course content can remain accurate and
+ * timely.</p>
  *
- * Integrity rule:
- * - CLS response courseCode MUST match event courseCode (normalized compare). If mismatch => audit FAILED + return null.
+ * <p><b>Technical purpose:</b> Execute CLS OAuth and CLS fetch requests using {@link HttpExecutor}, map responses using
+ * Jackson / project mappers, and persist outcomes through {@link AuditEventWriter} without direct email sending.</p>
  *
- * Audit timing rules (enforced in this class):
- * - For AuditStatus.STARTED events: endTimeMs MUST be 0 (unknown yet).
- * - For ended events: endTimeMs MUST be >= startTimeMs (clamp if needed).
+ * <p><b>Key rules:</b>
+ * <ul>
+ *   <li>No direct emails are sent from this class; it writes audit events only. Centralized email triggering is handled
+ *       elsewhere based on persisted audit outcomes.</li>
+ *   <li>Integrity: CLS response courseCode must match the event courseCode (normalized compare). If mismatch, audit
+ *       FAILED and return {@code null}.</li>
+ *   <li>Audit timing: for {@link AuditStatus#STARTED}, endTimeMs is forced to {@code 0}. For ended events, endTimeMs is
+ *       clamped to be {@code >= startTimeMs}.</li>
+ *   <li>Audit steps are intentionally coarse-grained for CLS: {@link AuditStep#CLS_AUTH} and {@link AuditStep#CLS_FETCH}.
+ *       Fine-grained phases are captured under detailsJson (e.g., {@code phase=DUMMY_COURSES}).</li>
+ * </ul>
+ * </p>
+ *
+ * @author @akshaygawande
  */
 public class ClsConnectionClient {
+
+    private static final String PHASE_COURSE_DETAILS = "COURSE_DETAILS";
+    private static final String PHASE_SCHEDULES = "SCHEDULES";
+    private static final String PHASE_DUMMY_COURSES = "DUMMY_COURSES";
+    private static final String PHASE_DUMMY_SUBSCRIPTIONS = "DUMMY_SUBSCRIPTIONS";
 
     private final Map<ParameterKeyEnum, Object> _params;
     private final HttpExecutor _http;
     private final ObjectMapper _mapper;
     private final AuditEventWriter _auditEventWriter;
 
+    /**
+     * Cached OAuth token for CLS.
+     *
+     * <p>Volatile ensures cross-thread visibility when this client is used concurrently.</p>
+     */
     private volatile String _cachedAccessToken;
+
+    /**
+     * Epoch millis when the cached token should be considered expired (includes safety skew).
+     */
     private volatile long _cachedAccessTokenExpiresAtMs;
 
+    /**
+     * Creates a CLS connection client.
+     *
+     * <p><b>Business purpose:</b> Provide a reusable CLS client instance configured by environment parameters.</p>
+     * <p><b>Technical purpose:</b> Store injected dependencies (params, HTTP executor, Jackson mapper, audit writer) and
+     * initialize safe defaults for optional params.</p>
+     *
+     * @param params Environment/runtime parameters (timeouts, endpoints, retry counts, company/group IDs).
+     * @param http HTTP executor abstraction used to perform CLS calls.
+     * @param mapper Jackson mapper used to deserialize CLS responses.
+     * @param auditEventWriter Writer that persists audit events; failures here must not break runtime flow.
+     */
     public ClsConnectionClient(
         Map<ParameterKeyEnum, Object> params,
         HttpExecutor http,
@@ -71,6 +105,52 @@ public class ClsConnectionClient {
         _auditEventWriter = auditEventWriter;
     }
 
+    /**
+     * Fetches course details from CLS for the given workflow context.
+     *
+     * <p><b>Business purpose:</b> Retrieve authoritative course attributes from CLS so downstream processing can update
+     * NTUC course content accurately.</p>
+     *
+     * <p><b>Technical purpose:</b> Performs OAuth (cached) and a CLS fetch request with retries, validates the CLS payload,
+     * maps the first course entry, and enforces a strict courseCode integrity check against the workflow context.</p>
+     *
+     * <p><b>Inputs/Invariants:</b>
+     * <ul>
+     *   <li>{@code eventCtx} provides companyId/groupId/userId/courseCode/ntucDTId and event type metadata.</li>
+     *   <li>Returned properties are normalized based on event type: PUBLISHED returns empty, CHANGED returns changeFrom.</li>
+     * </ul>
+     * </p>
+     *
+     * <p><b>Side effects:</b>
+     * <ul>
+     *   <li>External call: CLS OAuth token acquisition (when cache miss/expired).</li>
+     *   <li>External call: CLS course details fetch with request payload.</li>
+     *   <li>Audit writes: emits STARTED/SUCCESS/FAILED events for CLS_AUTH and CLS_FETCH.</li>
+     * </ul>
+     * </p>
+     *
+     * <p><b>Audit behavior:</b>
+     * <ul>
+     *   <li>CLS_FETCH STARTED recorded once at the beginning of the operation.</li>
+     *   <li>Each attempt emits CLS_FETCH FAILED on HTTP error or exception.</li>
+     *   <li>CLS_FETCH SUCCESS recorded on a valid mapped course with courseCode integrity match.</li>
+     *   <li>CLS_AUTH audit events are emitted by token acquisition logic and are correlated to the same corrId/requestId.</li>
+     * </ul>
+     * </p>
+     *
+     * <p><b>Return semantics:</b>
+     * <ul>
+     *   <li>Returns mapped {@link CourseResponse} on success.</li>
+     *   <li>Returns {@code null} when CLS returns no course, invalid payload, integrity mismatch, or after retries fail.</li>
+     *   <li>Throws {@link IOException} for certain token/URL encoding failures that are surfaced by the auth path.</li>
+     * </ul>
+     * </p>
+     *
+     * @param eventCtx Workflow event context (identity + courseCode + event metadata).
+     * @param returnedProperties Optional list of CLS fields to request; will be normalized based on event type.
+     * @return Mapped {@link CourseResponse} or {@code null} on failure/empty payload.
+     * @throws IOException If OAuth/token acquisition or encoding triggers an IO-level failure.
+     */
     public CourseResponse getCourseDetails(CourseEventContext eventCtx, String[] returnedProperties) throws IOException {
         final long startMs = System.currentTimeMillis();
         final String corrId = corrId();
@@ -89,15 +169,21 @@ public class ClsConnectionClient {
         String method = (String) _params.get(ParameterKeyEnum.CLS_COURSE_DETAILS_METHOD);
         int retryCount = parseIntSafe((String) _params.get(ParameterKeyEnum.CLS_COURSE_RETRY_COUNT), 0);
 
+        // Using CLS_FETCH as this is the CLS data retrieval boundary.
+        // Specifics about the call type are captured in detailsJson phase=COURSE_DETAILS.
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-            AuditSeverity.INFO, AuditStatus.STARTED, AuditStep.CLS_FETCH_CRITICAL_START,
+            AuditSeverity.INFO, AuditStatus.STARTED, AuditStep.CLS_FETCH,
             AuditCategory.CLS, "CLS course fetch start",
             AuditErrorCode.NONE, null, null,
-            details("endpoint", safe(endpoint), "method", safe(method),
+            details(
+                "phase", PHASE_COURSE_DETAILS,
+                "endpoint", safe(endpoint),
+                "method", safe(method),
                 "retries", String.valueOf(Math.max(retryCount, 1)),
                 "returnedPropsCount", String.valueOf(returnedProperties == null ? 0 : returnedProperties.length),
-                "returnedProps", returnedProperties == null ? "" : String.join(",", returnedProperties))
+                "returnedProps", returnedProperties == null ? "" : String.join(",", returnedProperties)
+            )
         );
 
         int lastStatus = -1;
@@ -109,13 +195,15 @@ public class ClsConnectionClient {
             try {
                 String token = fetchAccessTokenInternal(ids, corrId, requestId);
                 if (token == null) {
+                    // Using CLS_AUTH as this failure is about acquiring a valid OAuth token.
+                    // Attempt number is captured in detailsJson.
                     audit(
                         startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                        AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+                        AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_AUTH,
                         AuditCategory.CLS, "CLS course fetch: token null",
                         AuditErrorCode.CLS_OAUTH_FAILED, "token null",
                         null,
-                        details("attempt", String.valueOf(attempt))
+                        details("phase", PHASE_COURSE_DETAILS, "attempt", String.valueOf(attempt))
                     );
                     continue;
                 }
@@ -146,15 +234,20 @@ public class ClsConnectionClient {
                     CourseListResponse list = _mapper.readValue(resp.getBody(), CourseListResponse.class);
 
                     if (list != null && list.getError() != null) {
+                        // Using CLS_FETCH: CLS responded successfully at HTTP level, but the payload contains an error object.
                         audit(
                             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+                            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
                             AuditCategory.CLS, "CLS returned error object",
                             AuditErrorCode.CLS_INVALID_RESPONSE,
                             safe("CLS error=" + list.getError().getCode()),
                             null,
-                            details("attempt", String.valueOf(attempt), "statusCode", String.valueOf(resp.getStatusCode()),
-                                    "elapsedMs", String.valueOf(elapsedMs))
+                            details(
+                                "phase", PHASE_COURSE_DETAILS,
+                                "attempt", String.valueOf(attempt),
+                                "statusCode", String.valueOf(resp.getStatusCode()),
+                                "elapsedMs", String.valueOf(elapsedMs)
+                            )
                         );
                         continue;
                     }
@@ -165,29 +258,33 @@ public class ClsConnectionClient {
                     if (mapped == null || mapped.getBody() == null) {
                         audit(
                             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                            AuditSeverity.WARNING, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+                            AuditSeverity.WARNING, AuditStatus.FAILED, AuditStep.CLS_FETCH,
                             AuditCategory.CLS, "CLS returned no course for courseCode",
                             AuditErrorCode.CLS_EMPTY_BODY,
                             "No course returned from CLS for courseCode=" + courseCode,
                             null,
-                            details("attempt", String.valueOf(attempt), "statusCode", String.valueOf(lastStatus))
+                            details(
+                                "phase", PHASE_COURSE_DETAILS,
+                                "attempt", String.valueOf(attempt),
+                                "statusCode", String.valueOf(lastStatus)
+                            )
                         );
                         return null;
                     }
 
                     // ----------------- CRITICAL INTEGRITY CHECK -----------------
-                    // courseCode in the response must match courseCode in the event.
                     String actualCourseCode = extractCourseCodeFromCourseResponse(mapped);
 
                     if (!CourseCodeMatcher.matches(courseCode, actualCourseCode)) {
                         audit(
                             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH_CRITICAL_END,
+                            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
                             AuditCategory.CLS, "CLS returned courseCode mismatch",
                             AuditErrorCode.CLS_INVALID_RESPONSE,
                             safe("Expected courseCode=" + courseCode + " but got courseCode=" + safe(actualCourseCode)),
                             null,
                             details(
+                                "phase", PHASE_COURSE_DETAILS,
                                 "attempt", String.valueOf(attempt),
                                 "statusCode", String.valueOf(resp.getStatusCode()),
                                 "elapsedMs", String.valueOf(elapsedMs),
@@ -201,11 +298,15 @@ public class ClsConnectionClient {
 
                     audit(
                         startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                        AuditSeverity.INFO, AuditStatus.SUCCESS, AuditStep.ASYNC_PROCESS_END,
+                        AuditSeverity.INFO, AuditStatus.SUCCESS, AuditStep.CLS_FETCH,
                         AuditCategory.CLS, "CLS course fetch success",
                         AuditErrorCode.NONE, null, null,
-                        details("attempts", String.valueOf(attempt), "statusCode", String.valueOf(resp.getStatusCode()),
-                                "elapsedMs", String.valueOf(elapsedMs))
+                        details(
+                            "phase", PHASE_COURSE_DETAILS,
+                            "attempts", String.valueOf(attempt),
+                            "statusCode", String.valueOf(resp.getStatusCode()),
+                            "elapsedMs", String.valueOf(elapsedMs)
+                        )
                     );
 
                     return mapped;
@@ -213,42 +314,82 @@ public class ClsConnectionClient {
 
                 audit(
                     startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                    AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+                    AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
                     AuditCategory.CLS, "CLS course fetch attempt failed",
                     classifyHttpError(resp.getStatusCode()),
                     safe("HTTP " + resp.getStatusCode()),
                     null,
-                    details("attempt", String.valueOf(attempt), "statusCode", String.valueOf(resp.getStatusCode()),
-                            "elapsedMs", String.valueOf(elapsedMs))
+                    details(
+                        "phase", PHASE_COURSE_DETAILS,
+                        "attempt", String.valueOf(attempt),
+                        "statusCode", String.valueOf(resp.getStatusCode()),
+                        "elapsedMs", String.valueOf(elapsedMs)
+                    )
                 );
             }
             catch (Exception e) {
                 audit(
                     startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                    AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+                    AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
                     AuditCategory.CLS, "CLS course fetch attempt exception",
                     AuditErrorCode.CLS_CONNECTION_FAILED,
                     safeMsg(e),
                     (e != null ? e.getClass().getName() : null),
-                    details("attempt", String.valueOf(attempt))
+                    details("phase", PHASE_COURSE_DETAILS, "attempt", String.valueOf(attempt))
                 );
             }
         }
 
-        // Final failure after retries (no email here; trigger decides)
+        // Final failure after retries (no email here; trigger decides based on persisted audit).
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
             AuditCategory.CLS, "CLS course fetch failed after retries",
             AuditErrorCode.CLS_CONNECTION_FAILED,
             safe("all retries failed; lastStatus=" + lastStatus),
             null,
-            details("lastStatus", String.valueOf(lastStatus), "lastBodyPresent", String.valueOf(lastBody != null))
+            details(
+                "phase", PHASE_COURSE_DETAILS,
+                "lastStatus", String.valueOf(lastStatus),
+                "lastBodyPresent", String.valueOf(lastBody != null)
+            )
         );
 
         return null;
     }
 
+    /**
+     * Fetches the latest schedules for a course from CLS.
+     *
+     * <p><b>Business purpose:</b> Keep schedule listings current so learners and admins see accurate session availability.</p>
+     *
+     * <p><b>Technical purpose:</b> Executes a CLS schedules GET call (with OAuth token) and maps the JSON response to
+     * {@link ScheduleResponse}.</p>
+     *
+     * <p><b>Inputs/Invariants:</b> {@code courseCode} must be non-blank to perform a CLS call.</p>
+     *
+     * <p><b>Side effects:</b>
+     * <ul>
+     *   <li>External call: CLS OAuth token acquisition (when cache miss/expired).</li>
+     *   <li>External call: CLS schedules fetch.</li>
+     *   <li>Audit writes: emits SUCCESS/FAILED events for CLS_FETCH.</li>
+     * </ul>
+     * </p>
+     *
+     * <p><b>Audit behavior:</b> Emits CLS_FETCH SUCCESS on 200 with a body. Emits CLS_FETCH FAILED for 404 and for
+     * retry exhaustion (connection failures and other non-200 statuses are captured per attempt).</p>
+     *
+     * <p><b>Return semantics:</b>
+     * <ul>
+     *   <li>Returns mapped {@link ScheduleResponse} on HTTP 200 with body.</li>
+     *   <li>Returns {@code null} on blank input, 404, or retry exhaustion.</li>
+     * </ul>
+     * </p>
+     *
+     * @param courseCode CLS course code.
+     * @return {@link ScheduleResponse} or {@code null}.
+     * @throws IOException If encoding/token acquisition causes an IO-level failure.
+     */
     public ScheduleResponse getLatestCourseSchedules(String courseCode) throws IOException {
         if (courseCode == null || courseCode.trim().isEmpty()) {
             return null;
@@ -286,24 +427,38 @@ public class ClsConnectionClient {
                 HttpResponse resp = _http.execute(method, safe(baseUrl) + endpoint, headers, null, connectTimeout, readTimeout);
 
                 if (resp.getStatusCode() == 200 && resp.getBody() != null) {
+                    audit(
+                        startMs, System.currentTimeMillis(), corrId, requestId, ids,
+                        AuditSeverity.INFO, AuditStatus.SUCCESS, AuditStep.CLS_FETCH,
+                        AuditCategory.CLS, "CLS schedule fetch success",
+                        AuditErrorCode.NONE, null, null,
+                        details("phase", PHASE_SCHEDULES, "attempt", String.valueOf(attempt), "statusCode", "200")
+                    );
                     return _mapper.readValue(resp.getBody(), ScheduleResponse.class);
                 }
 
                 if (resp.getStatusCode() == 404) {
+                    audit(
+                        startMs, System.currentTimeMillis(), corrId, requestId, ids,
+                        AuditSeverity.WARNING, AuditStatus.FAILED, AuditStep.CLS_FETCH,
+                        AuditCategory.CLS, "CLS schedule fetch returned 404",
+                        AuditErrorCode.CLS_HTTP_4XX, "HTTP 404", null,
+                        details("phase", PHASE_SCHEDULES, "attempt", String.valueOf(attempt), "statusCode", "404")
+                    );
                     return null;
                 }
             }
             catch (Exception ignore) {
-                // ignore attempt
+                // Per-attempt failure is tolerated; final failure is audited after retries.
             }
         }
 
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.ASYNC_PROCESS_END,
+            AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_FETCH,
             AuditCategory.CLS, "CLS schedule fetch failed after retries",
             AuditErrorCode.CLS_CONNECTION_FAILED, "all retries failed", null,
-            details("courseCode", courseCode)
+            details("phase", PHASE_SCHEDULES, "courseCode", courseCode)
         );
 
         return null;
@@ -313,29 +468,56 @@ public class ClsConnectionClient {
     // Dummy endpoints (raw JSON pass-through)
     // =====================================================================
 
+    /**
+     * Fetches raw JSON from the CLS dummy courses endpoint.
+     *
+     * <p><b>Business purpose:</b> Support diagnostics and controlled validation of CLS connectivity and behavior.</p>
+     * <p><b>Technical purpose:</b> Pass-through CLS dummy endpoint response without DTO mapping.</p>
+     *
+     * @param courseCode CLS course code.
+     * @return Raw JSON response body or {@code null}.
+     * @throws IOException If URL encoding/token acquisition causes an IO-level failure.
+     */
     public String getCoursesDummyRawJson(String courseCode) throws IOException {
         return getDummyRawJson(
             courseCode,
             (String) _params.get(ParameterKeyEnum.CLS_DUMMY_COURSES_ENDPOINT),
-            AuditStep.CLS_DUMMY_COURSES_FETCH
+            PHASE_DUMMY_COURSES
         );
     }
 
+    /**
+     * Fetches raw JSON from the CLS dummy subscriptions endpoint.
+     *
+     * <p><b>Business purpose:</b> Support diagnostics and controlled validation of CLS subscription-related payloads.</p>
+     * <p><b>Technical purpose:</b> Pass-through CLS dummy endpoint response without DTO mapping.</p>
+     *
+     * @param courseCode CLS course code.
+     * @return Raw JSON response body or {@code null}.
+     * @throws IOException If URL encoding/token acquisition causes an IO-level failure.
+     */
     public String getSubscriptionsDummyRawJson(String courseCode) throws IOException {
         return getDummyRawJson(
             courseCode,
             (String) _params.get(ParameterKeyEnum.CLS_DUMMY_SUBSCRIPTIONS_ENDPOINT),
-            AuditStep.CLS_DUMMY_SUBSCRIPTIONS_FETCH
+            PHASE_DUMMY_SUBSCRIPTIONS
         );
     }
 
     /**
      * Raw JSON pass-through for CLS dummy endpoints.
      *
-     * Rule:
-     * - Return exactly CLS response body (no DTO mapping).
+     * <p><b>Business purpose:</b> Enable operational troubleshooting without altering payload semantics.</p>
+     * <p><b>Technical purpose:</b> Executes a CLS call and returns the response body as-is, emitting audit events under
+     * {@link AuditStep#CLS_FETCH} while the endpoint kind is recorded as {@code details.phase}.</p>
+     *
+     * <p><b>Inputs/Invariants:</b> courseCode must be non-blank and endpoint template must be provided.</p>
+     *
+     * <p><b>Side effects:</b> External CLS OAuth (if needed), external CLS dummy HTTP call, audit writes.</p>
+     *
+     * <p><b>Return semantics:</b> Returns raw response body on HTTP 200; otherwise {@code null}.</p>
      */
-    private String getDummyRawJson(String courseCode, String endpointTpl, AuditStep step) throws IOException {
+    private String getDummyRawJson(String courseCode, String endpointTpl, String phase) throws IOException {
         if (courseCode == null || courseCode.trim().isEmpty() || endpointTpl == null) {
             return null;
         }
@@ -353,6 +535,14 @@ public class ClsConnectionClient {
 
         String token = fetchAccessTokenInternal(ids, corrId, requestId);
         if (token == null) {
+            // Using CLS_AUTH as the failure is strictly about OAuth token acquisition, not the dummy endpoint call itself.
+            audit(
+                startMs, System.currentTimeMillis(), corrId, requestId, ids,
+                AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_AUTH,
+                AuditCategory.CLS, "CLS dummy fetch: token null",
+                AuditErrorCode.CLS_OAUTH_FAILED, "token null", null,
+                details("phase", phase)
+            );
             return null;
         }
 
@@ -378,22 +568,22 @@ public class ClsConnectionClient {
         if (resp.getStatusCode() == 200 && resp.getBody() != null) {
             audit(
                 startMs, System.currentTimeMillis(), corrId, requestId, ids,
-                AuditSeverity.INFO, AuditStatus.SUCCESS, step,
+                AuditSeverity.INFO, AuditStatus.SUCCESS, AuditStep.CLS_FETCH,
                 AuditCategory.CLS, "CLS dummy fetch success",
                 AuditErrorCode.NONE, null, null,
-                details("endpoint", endpointTpl, "statusCode", String.valueOf(resp.getStatusCode()))
+                details("phase", phase, "endpoint", endpointTpl, "statusCode", String.valueOf(resp.getStatusCode()))
             );
             return resp.getBody();
         }
 
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
-            AuditSeverity.WARNING, AuditStatus.FAILED, step,
+            AuditSeverity.WARNING, AuditStatus.FAILED, AuditStep.CLS_FETCH,
             AuditCategory.CLS, "CLS dummy fetch failed",
             classifyHttpError(resp.getStatusCode()),
             safe("HTTP " + resp.getStatusCode()),
             null,
-            details("endpoint", endpointTpl, "statusCode", String.valueOf(resp.getStatusCode()))
+            details("phase", phase, "endpoint", endpointTpl, "statusCode", String.valueOf(resp.getStatusCode()))
         );
 
         return null;
@@ -401,6 +591,32 @@ public class ClsConnectionClient {
 
     // ---------------- Token / auth ----------------
 
+    /**
+     * Obtains a CLS OAuth access token, using an in-memory cache with safety skew.
+     *
+     * <p><b>Business purpose:</b> Ensure CLS calls are authenticated reliably while minimizing unnecessary token requests.</p>
+     *
+     * <p><b>Technical purpose:</b> Checks cache first; on miss/expiry, calls CLS OAuth endpoint and caches the token until
+     * (expiresIn - safetySkew).</p>
+     *
+     * <p><b>Inputs/Invariants:</b> Requires CLS auth params (base URL, endpoint, clientId, clientSecret).</p>
+     *
+     * <p><b>Side effects:</b>
+     * <ul>
+     *   <li>External call: CLS OAuth endpoint when cache miss/expired.</li>
+     *   <li>State mutation: updates {@code _cachedAccessToken} and {@code _cachedAccessTokenExpiresAtMs}.</li>
+     *   <li>Audit writes: CLS_AUTH STARTED/PARTIAL/SUCCESS/FAILED with detailed phases.</li>
+     * </ul>
+     * </p>
+     *
+     * <p><b>Return semantics:</b> Returns token string or {@code null} when configuration is missing or auth fails.</p>
+     *
+     * @param ids Correlation identity for audit fields.
+     * @param corrId Correlation ID (shared across CLS_AUTH and CLS_FETCH events within a request).
+     * @param requestId Request ID (shared across CLS_AUTH and CLS_FETCH events within a request).
+     * @return OAuth token or {@code null}.
+     * @throws IOException If the underlying HTTP execute or JSON parsing fails with an IO-level error.
+     */
     private String fetchAccessTokenInternal(Ids ids, String corrId, String requestId) throws IOException {
         final long startMs = System.currentTimeMillis();
         final long startNs = System.nanoTime();
@@ -420,14 +636,13 @@ public class ClsConnectionClient {
                     "nowMs", String.valueOf(now),
                     "expiresAtMs", String.valueOf(_cachedAccessTokenExpiresAtMs),
                     "ttlMs", String.valueOf(ttlMs),
-                    "tokenPresent", String.valueOf(_cachedAccessToken != null)
+                    "tokenPresent", "true"
                 )
             );
 
             return _cachedAccessToken;
         }
 
-        // Cache miss / expired
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
             AuditSeverity.INFO, AuditStatus.STARTED, AuditStep.CLS_AUTH,
@@ -456,7 +671,6 @@ public class ClsConnectionClient {
         boolean clientIdWasDecoded = (rawClientId != null) && !rawClientId.equals(clientId);
         boolean clientSecretWasDecoded = (rawClientSecret != null) && !rawClientSecret.equals(clientSecret);
 
-        // Endpoint breakdown (safe)
         String urlScheme = "";
         String urlHost = "";
         String urlPath = "";
@@ -469,10 +683,9 @@ public class ClsConnectionClient {
             urlHasQuery = String.valueOf(u.getQuery() != null && !u.getQuery().isEmpty());
         }
         catch (Exception ignore) {
-            // keep empty; do not throw
+            // URL inspection is best-effort for audit diagnostics; failures do not block auth.
         }
 
-        // Log config readiness (sanitized)
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
             AuditSeverity.INFO, AuditStatus.STARTED, AuditStep.CLS_AUTH,
@@ -527,7 +740,6 @@ public class ClsConnectionClient {
         headers.put("Content-Type", "application/x-www-form-urlencoded");
         headers.put("Accept", "application/json");
 
-        // Request summary (sanitized)
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
             AuditSeverity.INFO, AuditStatus.STARTED, AuditStep.CLS_AUTH,
@@ -543,9 +755,7 @@ public class ClsConnectionClient {
                 "grantType", "client_credentials",
                 "scope", "pweb",
                 "bodyKeys", "client_id,client_secret,grant_type,scope",
-                "bodyLenBytes", String.valueOf(params.getBytes(StandardCharsets.UTF_8).length),
-                "connectTimeoutMs", "0",
-                "readTimeoutMs", "0"
+                "bodyLenBytes", String.valueOf(params.getBytes(StandardCharsets.UTF_8).length)
             )
         );
 
@@ -592,7 +802,6 @@ public class ClsConnectionClient {
         String body = resp.getBody();
         int bodyLenBytes = (body == null) ? 0 : body.getBytes(StandardCharsets.UTF_8).length;
 
-        // Response summary
         audit(
             startMs, System.currentTimeMillis(), corrId, requestId, ids,
             AuditSeverity.INFO, AuditStatus.PARTIAL, AuditStep.CLS_AUTH,
@@ -620,12 +829,12 @@ public class ClsConnectionClient {
                 audit(
                     startMs, endMs, corrId, requestId, ids,
                     AuditSeverity.ERROR, AuditStatus.FAILED, AuditStep.CLS_AUTH,
-                    AuditCategory.CLS, "CLS auth HTTP execute exception",
+                    AuditCategory.CLS, "CLS auth JSON parse failed",
                     AuditErrorCode.CLS_CONNECTION_FAILED,
                     safeMsg(e),
                     (e != null ? e.getClass().getName() : null),
                     details(
-                        "phase", "HTTP_EXECUTE",
+                        "phase", "JSON_PARSE",
                         "durationMs", String.valueOf(elapsedMs(startNs)),
                         "method", safe(method),
                         "urlHost", urlHost,
@@ -649,7 +858,7 @@ public class ClsConnectionClient {
                 expiresInSec = (tokenResp != null) ? tokenResp.getExpiresIn() : 0L;
             }
             catch (Exception ignore) {
-                // ignore
+                // expiresIn is optional; fallback expiry applies.
             }
 
             long nowAfter = System.currentTimeMillis();
@@ -704,6 +913,16 @@ public class ClsConnectionClient {
 
     // ---------------- Helpers ----------------
 
+    /**
+     * Normalizes returnedProperties for CLS course fetch based on the event type semantics.
+     *
+     * <p><b>Business purpose:</b> Optimize CLS fetch payload to retrieve only what is needed for a given workflow.</p>
+     * <p><b>Technical purpose:</b> PUBLISHED requests no returnedProperties; CHANGED uses changeFrom types when present.</p>
+     *
+     * @param eventCtx Workflow context containing event type and changeFrom information.
+     * @param returnedProperties Default returnedProperties from the caller.
+     * @return Normalized returnedProperties array (never null).
+     */
     private String[] normalizeReturnedProps(CourseEventContext eventCtx, String[] returnedProperties) {
         if (eventCtx != null) {
             String eventType = safe(eventCtx.getEventType());
@@ -723,7 +942,16 @@ public class ClsConnectionClient {
         return (returnedProperties == null) ? new String[0] : returnedProperties;
     }
 
-    private CourseResponse mapFirstCourse(CourseListResponse list) {
+    /**
+     * Maps the first course wrapper element into a {@link CourseResponse}.
+     *
+     * <p><b>Business purpose:</b> Convert CLS course list responses into the project's canonical course response shape.</p>
+     * <p><b>Technical purpose:</b> Select first entry and delegate to {@link CourseResponseMapper}.</p>
+     *
+     * @param list CLS list response.
+     * @return Mapped {@link CourseResponse}, or {@code null} when list is empty or invalid.
+     */
+    protected CourseResponse mapFirstCourse(CourseListResponse list) {
         if (list == null) return null;
 
         List<CourseResponseWrapper> courses = list.getCourses();
@@ -735,34 +963,18 @@ public class ClsConnectionClient {
         return CourseResponseMapper.mapToCourseResponse(first);
     }
 
-    /**
-     * Extract courseCode from mapped CourseResponse in a safe way.
-     *
-     * We intentionally avoid hard-coupling to a specific nested-body class at compile time.
-     * If the shape changes, we fail "closed" and treat as mismatch (caller decides).
-     */
     private static String extractCourseCodeFromCourseResponse(CourseResponse mapped) {
         if (mapped == null) {
             return "";
         }
 
-        try {
-            Object body = invokeNoArg(mapped, "getBody");
-            if (body == null) {
-                return "";
-            }
-
-            Object cc = invokeNoArg(body, "getCourseCode");
-            return (cc == null) ? "" : String.valueOf(cc);
-        }
-        catch (Exception ignore) {
+        CourseResponse.Body body = mapped.getBody();
+        if (body == null) {
             return "";
         }
-    }
 
-    private static Object invokeNoArg(Object target, String methodName) throws Exception {
-        Method m = target.getClass().getMethod(methodName);
-        return m.invoke(target);
+        String cc = body.getCourseCode();
+        return (cc == null) ? "" : cc;
     }
 
     private static String buildCoursePayload(String courseCode, String[] props) {
@@ -792,6 +1004,16 @@ public class ClsConnectionClient {
         return AuditErrorCode.CLS_CONNECTION_FAILED;
     }
 
+    /**
+     * Writes an immutable {@link AuditEvent} using {@link AuditEventWriter} and guarantees no exception escapes.
+     *
+     * <p><b>Business purpose:</b> Persist an authoritative audit trail for CLS calls and outcomes.</p>
+     * <p><b>Technical purpose:</b> Build {@link AuditEvent} with normalized endTimeMs semantics and push it to the writer.</p>
+     *
+     * <p><b>Side effects:</b> Audit persistence (DB write) via {@link AuditEventWriter} implementation.</p>
+     *
+     * <p><b>Return semantics:</b> No return; errors are swallowed to protect runtime flow.</p>
+     */
     private void audit(
         long startMs,
         long endMs,
@@ -841,23 +1063,22 @@ public class ClsConnectionClient {
             _auditEventWriter.write(b.build());
         }
         catch (Exception ignore) {
-            // must never break runtime flow
+            // Audit persistence must never block CLS processing.
         }
     }
 
     /**
-     * Audit timing normalization.
-     *
-     * Rules:
-     * - STARTED events have unknown end -> 0.
-     * - Ended events must never have end < start -> clamp to start.
+     * Normalizes endTimeMs per audit invariants:
+     * <ul>
+     *   <li>STARTED events store endTimeMs=0</li>
+     *   <li>Ended events clamp endTimeMs to be >= startTimeMs</li>
+     * </ul>
      */
     private static long normalizeEndMs(long startMs, long endMs, AuditStatus status) {
         if (status == AuditStatus.STARTED) {
             return 0L;
         }
         if (endMs <= 0L) {
-            // keep 0 only if caller truly wants "unknown"; otherwise clamp to start for ended states
             return startMs;
         }
         return (endMs < startMs) ? startMs : endMs;
@@ -914,6 +1135,9 @@ public class ClsConnectionClient {
         return (c != null) ? c : UUID.randomUUID().toString();
     }
 
+    /**
+     * Lightweight identity bundle used to populate audit fields consistently.
+     */
     private static final class Ids {
         final long groupId;
         final long companyId;

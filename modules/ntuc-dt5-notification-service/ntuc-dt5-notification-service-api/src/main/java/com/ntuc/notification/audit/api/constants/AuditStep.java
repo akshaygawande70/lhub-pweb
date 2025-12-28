@@ -1,115 +1,93 @@
 package com.ntuc.notification.audit.api.constants;
 
 /**
- * Strict audit steps.
+ * Canonical, layer-based audit steps.
  *
- * This enum is intentionally a superset:
- * - Existing values are preserved for backward compatibility
- * - New values enable precise, queryable observability
+ * <h2>Non-negotiable semantics</h2>
+ * <ul>
+ *   <li><b>Step = subsystem boundary</b>, not a lifecycle phase.</li>
+ *   <li>Lifecycle phase is expressed by {@link AuditStatus} (STARTED/SUCCESS/FAILED/SKIPPED/RETRIED/PARTIAL).</li>
+ *   <li>Impact is expressed by {@link AuditSeverity} (INFO/WARNING/ERROR).</li>
+ *   <li>Any nuance (e.g., CRON vs REST trigger, SCHEDULE vs DUMMY vs COURSE, critical vs non-critical)
+ *       must go into message + detailsJson.</li>
+ * </ul>
+ *
+ * <h2>Required details convention (service-side responsibility)</h2>
+ * <ul>
+ *   <li><b>trigger</b>: REST | CRON | RETRIGGER | OTL | ONE_TIME_S3</li>
+ *   <li><b>api</b> (when applicable): COURSE_DETAILS | SCHEDULE | DUMMY</li>
+ *   <li><b>phase</b> (optional): short discriminator for internal phases, never used for filtering as a substitute for step</li>
+ * </ul>
+ *
+ * <p>This enum is intentionally small and stable. Only add a new value when introducing a genuinely new
+ * subsystem boundary that operations would want to filter on independently.</p>
  */
 public enum AuditStep {
 
-    // ---------------------------------------------------------------------
-    // REST notify flow (legacy + still valid)
-    // ---------------------------------------------------------------------
-    REST_NOTIFY_BATCH,
-    REST_NOTIFY_EVENT_VALIDATE,
-    REST_NOTIFY_COURSE_VALIDATE,
-    REST_NOTIFY_PERSIST,
-    REST_NOTIFY_INTERNAL,
+    /**
+     * Entry boundary for inbound triggers (REST endpoint, cron trigger, retrigger call, OTL events).
+     *
+     * <p>Use this for request receipt, routing, and high-level orchestration setup.
+     * Do not use for deep processing.</p>
+     */
+    ENTRY,
 
-    // ---------------------------------------------------------------------
-    // Async pipeline (generic)
-    // ---------------------------------------------------------------------
-    ASYNC_ENQUEUED,
-    ASYNC_PROCESS_START,
-    ASYNC_PROCESS_END,
-
-    // ---------------------------------------------------------------------
-    // One-time utilities
-    // ---------------------------------------------------------------------
-    ONE_TIME_S3_VALIDATE,
-    ONE_TIME_S3_EXECUTE,
-
-    // ---------------------------------------------------------------------
-    // Validation / context (shared)
-    // ---------------------------------------------------------------------
-    VALIDATE_EVENT,
-    BUILD_CONTEXT,
+    /**
+     * Validation boundary for inputs and derived invariants.
+     *
+     * <p>Examples: request body validation, event header checks, schedule date validation,
+     * courseCode normalization checks, parameter/config presence validation.</p>
+     */
     VALIDATION,
 
-    // ---------------------------------------------------------------------
-    // Template resolution (shared)
-    // ---------------------------------------------------------------------
-    RESOLVE_TEMPLATE,
+    /**
+     * Context building boundary.
+     *
+     * <p>Examples: building {@code CourseEventContext}, resolving {@code CourseArticleConfig},
+     * computing returnedProperties from changeFrom, deriving business keys.</p>
+     */
+    CONTEXT,
 
-    // ---------------------------------------------------------------------
-    // CLS interaction
-    // ---------------------------------------------------------------------
+    /**
+     * Execution boundary for job scheduling and asynchronous processing.
+     *
+     * <p>Examples: enqueueing async work, beginning async execution, per-record execution loops for CRON/OTL/S3.</p>
+     */
+    EXECUTION,
+
+    /**
+     * CLS OAuth boundary (token acquisition/refresh/cache decisions).
+     */
     CLS_AUTH,
-    CLS_FETCH_CRITICAL_START,
-    CLS_FETCH_CRITICAL_END,
-    CLS_FETCH_NONCRITICAL_START,
-    CLS_FETCH_NONCRITICAL_END,
-    CLS_FETCH_CRON_START,
-    CLS_FETCH_CRON_END,
 
-    // ---------------------------------------------------------------------
-    // Journal Article processing (existing + expanded)
-    // ---------------------------------------------------------------------
-    JA_CREATE,
-    JA_UPDATE,
-    PROCESS_JOURNAL_ARTICLE,
+    /**
+     * CLS API boundary (all external CLS calls).
+     *
+     * <p>Includes: course details fetch, schedule fetch, dummy APIs, CLS cron-related fetches.
+     * Differentiate via detailsJson keys such as {@code api=SCHEDULE} / {@code api=DUMMY}.</p>
+     */
+    CLS_FETCH,
 
-    // New precise JA steps (do NOT remove legacy values)
-    JA_PROCESS_FIELDS,
-    JA_LOOKUP,
-    JA_STATUS,
-    JA_STATUS_ALL_VERSIONS,
-    JA_FIND_LAYOUT,
+    /**
+     * Content persistence boundary for Liferay JournalArticle and DDM.
+     *
+     * <p>Includes: lookup, create, update, XML build/validation, status updates, layout lookup.</p>
+     */
+    JA_PROCESS,
 
-    // ---------------------------------------------------------------------
-    // Retrigger flow
-    // ---------------------------------------------------------------------
-    RETRIGGER_START,
-    RETRIGGER_END,
+    /**
+     * Template boundary for resolving and rendering templates.
+     *
+     * <p>Includes: selecting template keys, building template model, FreeMarker rendering,
+     * template persistence (if applicable).</p>
+     */
+    TEMPLATE,
 
-    // ---------------------------------------------------------------------
-    // Cron (legacy)
-    // ---------------------------------------------------------------------
-    CRON_PROCESS,
-
-    // ---------------------------------------------------------------------
-    // Cron (precise / queryable) - DO NOT remove legacy CRON_PROCESS
-    // ---------------------------------------------------------------------
-    CRON_ACTIVATED,
-    CRON_JOB_STARTED,
-    CRON_RECORDS_DISCOVERED,
-    CRON_RECORD_STARTED,
-    CRON_RECORD_SUCCESS,
-    CRON_RECORD_FAILED,
-    CRON_JOB_FINISHED,
-    CRON_JOB_FAILED,
-
-    // ---------------------------------------------------------------------
-    // One-Time Load (OTL)
-    // ---------------------------------------------------------------------
-    OTL_START,
-    OTL_END,
-
-    // ---------------------------------------------------------------------
-    // Email alerting steps
-    // ---------------------------------------------------------------------
-    EMAIL_SENT,
-    EMAIL_SUPPRESSED,
-    EMAIL_SEND_FAILED, 
-    EMAIL_DEDUPE_CHECK_FAILED, 
-    EMAIL_TEMPLATES_SAVE,
-    
-    
-    // ---------------------------------------------------------------------
-    // Dummy APIs
-    // ---------------------------------------------------------------------
-    CLS_DUMMY_COURSES_FETCH,
-    CLS_DUMMY_SUBSCRIPTIONS_FETCH
+    /**
+     * Alerting boundary driven solely by persisted audit records.
+     *
+     * <p>Includes: policy resolution, fingerprint building, dedupe checks, send/suppress outcomes.
+     * Outcomes must be represented by status + errorCode (not additional steps).</p>
+     */
+    EMAIL_ALERT, EMAIL_SENT, EMAIL_SUPPRESSED, EMAIL_SEND_FAILED
 }

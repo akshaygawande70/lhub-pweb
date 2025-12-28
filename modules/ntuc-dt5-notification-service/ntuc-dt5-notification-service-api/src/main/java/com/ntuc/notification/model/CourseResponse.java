@@ -3,21 +3,49 @@ package com.ntuc.notification.model;
 import java.util.List;
 
 /**
- * DTO representing CLS course payload.
+ * DTO representing the CLS course payload.
  *
- * Pure API contract:
- * - No JSON annotations
- * - No validation/compute logic
- * - No references to service-internal context objects
+ * <p><b>Business purpose:</b>
+ * Represents a complete course definition received from the CLS platform,
+ * encapsulating descriptive, pricing, eligibility, and categorization data
+ * required for downstream publishing and notification workflows.</p>
+ *
+ * <p><b>Technical purpose:</b>
+ * Acts as a pure data carrier mapped from CLS responses.
+ * This class is intentionally free of validation, computation, JSON annotations,
+ * or service-layer dependencies to keep the API contract stable and reusable.</p>
+ *
+ * <p>Design constraints:</p>
+ * <ul>
+ *   <li>No JSON/Jackson annotations</li>
+ *   <li>No validation or transformation logic</li>
+ *   <li>No references to service, audit, or persistence layers</li>
+ * </ul>
+ *
+ * @author @akshaygawande
  */
 public class CourseResponse {
 
+    /**
+     * Root payload body returned by CLS.
+     * Wrapped to allow future envelope-level metadata if required.
+     */
     private Body body;
 
+    /**
+     * Returns the course payload body.
+     *
+     * @return course body, may be {@code null} if CLS returned an empty payload
+     */
     public Body getBody() {
         return body;
     }
 
+    /**
+     * Sets the course payload body.
+     *
+     * @param body CLS course body
+     */
     public void setBody(Body body) {
         this.body = body;
     }
@@ -27,7 +55,19 @@ public class CourseResponse {
         return "CourseResponse{body=" + body + '}';
     }
 
+    /**
+     * Core course definition returned by CLS.
+     *
+     * <p><b>Business purpose:</b>
+     * Captures all user-facing and operational attributes of a course,
+     * including marketing content, pricing, funding, and eligibility.</p>
+     *
+     * <p><b>Technical purpose:</b>
+     * Serves as a structured container for nested DTOs reflecting
+     * the CLS domain hierarchy.</p>
+     */
     public static class Body {
+
         private String courseCode;
         private List<CourseImgUrl> courseImgUrls;
         private String courseName;
@@ -60,7 +100,12 @@ public class CourseResponse {
         private List<AreaOfInterest> areaOfInterest;
         private String additionalInfo;
 
-        // Derived value is allowed as data, but the computation must be done in service
+        /**
+         * Derived monetary value.
+         *
+         * <p>Computation is intentionally performed in service-layer logic
+         * and injected here as plain data to preserve DTO purity.</p>
+         */
         private Double price;
 
         public String getCourseCode() { return courseCode; }
@@ -151,44 +196,20 @@ public class CourseResponse {
 
         @Override
         public String toString() {
-            return "Body[courseCode=" + courseCode +
-                    ", courseImgUrls=" + courseImgUrls +
-                    ", courseName=" + courseName +
-                    ", popular=" + popular +
-                    ", funded=" + funded +
-                    ", duration=" + duration +
-                    ", whoAttend=" + whoAttend +
-                    ", courseAssessment=" + courseAssessment +
-                    ", whatForMe=" + whatForMe +
-                    ", courseOverview=" + courseOverview +
-                    ", objective=" + objective +
-                    ", prerequisites=" + prerequisites +
-                    ", outline=" + outline +
-                    ", outlinePDFS3Url=" + outlinePDFS3Url +
-                    ", certificateObtained=" + certificateObtained +
-                    ", termsCondition=" + termsCondition +
-                    ", pricingTable=" + pricingTable +
-                    ", subsidy=" + subsidy +
-                    ", fundingEligibilityCriteria=" + fundingEligibilityCriteria +
-                    ", intakeOpenTo=" + intakeOpenTo +
-                    ", courseStatus=" + courseStatus +
-                    ", courseCatalogueStatus=" + courseCatalogueStatus +
-                    ", lxpScheduleUrl=" + lxpScheduleUrl +
-                    ", courseCategory=" + courseCategory +
-                    ", courseType=" + courseType +
-                    ", areaOfInterest=" + areaOfInterest +
-                    ", additionalInfo=" + additionalInfo +
-                    ", price=" + price +
-                    "]";
+            return "Body[courseCode=" + courseCode + ", courseName=" + courseName + ", price=" + price + "]";
         }
     }
 
+    /**
+     * Image reference associated with a course.
+     */
     public static class CourseImgUrl {
         private String typeOfImage;
         private String url;
 
         public String getTypeOfImage() { return typeOfImage; }
         public void setTypeOfImage(String typeOfImage) { this.typeOfImage = typeOfImage; }
+
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
 
@@ -198,6 +219,9 @@ public class CourseResponse {
         }
     }
 
+    /**
+     * Pricing structure for a course.
+     */
     public static class PricingTable {
         private List<Row> table;
         private String disclaimer;
@@ -212,28 +236,25 @@ public class CourseResponse {
         public String getTemplateType() { return templateType; }
         public void setTemplateType(String templateType) { this.templateType = templateType; }
 
-        @Override
-        public String toString() {
-            return "PricingTable{table=" + table + ", disclaimer='" + disclaimer + "', templateType='" + templateType + "'}";
-        }
-
         public static class Row {
             private String eligibilityDescription;
             private List<PricingDetail> pricingDetails;
 
             public String getEligibilityDescription() { return eligibilityDescription; }
-            public void setEligibilityDescription(String eligibilityDescription) { this.eligibilityDescription = eligibilityDescription; }
+            public void setEligibilityDescription(String eligibilityDescription) {
+                this.eligibilityDescription = eligibilityDescription;
+            }
 
             public List<PricingDetail> getPricingDetails() { return pricingDetails; }
-            public void setPricingDetails(List<PricingDetail> pricingDetails) { this.pricingDetails = pricingDetails; }
-
-            @Override
-            public String toString() {
-                return "Row{eligibilityDescription='" + eligibilityDescription + "', pricingDetails=" + pricingDetails + "}";
+            public void setPricingDetails(List<PricingDetail> pricingDetails) {
+                this.pricingDetails = pricingDetails;
             }
         }
     }
 
+    /**
+     * Individual pricing entry for a sponsor category.
+     */
     public static class PricingDetail {
         private String sponsorType;
         private String sponsorSubType;
@@ -251,14 +272,11 @@ public class CourseResponse {
 
         public Double getAfterGST() { return afterGST; }
         public void setAfterGST(Double afterGST) { this.afterGST = afterGST; }
-
-        @Override
-        public String toString() {
-            return "PricingDetail{sponsorType='" + sponsorType + "', sponsorSubType='" + sponsorSubType +
-                    "', beforeGST=" + beforeGST + ", afterGST=" + afterGST + "}";
-        }
     }
 
+    /**
+     * Entry and academic prerequisites for course enrolment.
+     */
     public static class Prerequisites {
         private Mer mer;
         private String entryRequirementRemark;
@@ -268,15 +286,12 @@ public class CourseResponse {
         public void setMer(Mer mer) { this.mer = mer; }
 
         public String getEntryRequirementRemark() { return entryRequirementRemark; }
-        public void setEntryRequirementRemark(String entryRequirementRemark) { this.entryRequirementRemark = entryRequirementRemark; }
+        public void setEntryRequirementRemark(String entryRequirementRemark) {
+            this.entryRequirementRemark = entryRequirementRemark;
+        }
 
         public List<FileRef> getFiles() { return files; }
         public void setFiles(List<FileRef> files) { this.files = files; }
-
-        @Override
-        public String toString() {
-            return "Prerequisites{mer=" + mer + ", entryRequirementRemark='" + entryRequirementRemark + "', files=" + files + "}";
-        }
     }
 
     public static class Mer {
@@ -288,11 +303,6 @@ public class CourseResponse {
 
         public List<Condition> getConditions() { return conditions; }
         public void setConditions(List<Condition> conditions) { this.conditions = conditions; }
-
-        @Override
-        public String toString() {
-            return "Mer{operator='" + operator + "', conditions=" + conditions + "}";
-        }
     }
 
     public static class Condition {
@@ -303,11 +313,8 @@ public class CourseResponse {
         public void setOperator(String operator) { this.operator = operator; }
 
         public List<SubCondition> getSubConditions() { return subConditions; }
-        public void setSubConditions(List<SubCondition> subConditions) { this.subConditions = subConditions; }
-
-        @Override
-        public String toString() {
-            return "Condition{operator='" + operator + "', subConditions=" + subConditions + "}";
+        public void setSubConditions(List<SubCondition> subConditions) {
+            this.subConditions = subConditions;
         }
     }
 
@@ -320,13 +327,11 @@ public class CourseResponse {
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
-
-        @Override
-        public String toString() {
-            return "SubCondition{title='" + title + "', description='" + description + "'}";
-        }
     }
 
+    /**
+     * Reference to an externally hosted file.
+     */
     public static class FileRef {
         private String fileName;
         private String fileUrl;
@@ -336,13 +341,11 @@ public class CourseResponse {
 
         public String getFileUrl() { return fileUrl; }
         public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
-
-        @Override
-        public String toString() {
-            return "FileRef{fileName='" + fileName + "', fileUrl='" + fileUrl + "'}";
-        }
     }
 
+    /**
+     * Funding subsidy descriptor.
+     */
     public static class Subsidy {
         private String title;
         private String description;
@@ -352,13 +355,11 @@ public class CourseResponse {
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
-
-        @Override
-        public String toString() {
-            return "Subsidy{title='" + title + "', description='" + description + "'}";
-        }
     }
 
+    /**
+     * Funding eligibility rule descriptor.
+     */
     public static class FundingEligibilityCriteria {
         private String title;
         private String description;
@@ -368,11 +369,6 @@ public class CourseResponse {
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
-
-        @Override
-        public String toString() {
-            return "FundingEligibilityCriteria{title='" + title + "', description='" + description + "'}";
-        }
     }
 
     public static class CourseCategory {
@@ -384,11 +380,6 @@ public class CourseResponse {
 
         public String getCategoryName() { return categoryName; }
         public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
-
-        @Override
-        public String toString() {
-            return "CourseCategory{categoryId='" + categoryId + "', categoryName='" + categoryName + "'}";
-        }
     }
 
     public static class CourseType {
@@ -400,11 +391,6 @@ public class CourseResponse {
 
         public String getCourseTypeName() { return courseTypeName; }
         public void setCourseTypeName(String courseTypeName) { this.courseTypeName = courseTypeName; }
-
-        @Override
-        public String toString() {
-            return "CourseType{courseTypeId='" + courseTypeId + "', courseTypeName='" + courseTypeName + "'}";
-        }
     }
 
     public static class AreaOfInterest {
@@ -412,14 +398,13 @@ public class CourseResponse {
         private String areaOfInterestName;
 
         public String getAreaOfInterestId() { return areaOfInterestId; }
-        public void setAreaOfInterestId(String areaOfInterestId) { this.areaOfInterestId = areaOfInterestId; }
+        public void setAreaOfInterestId(String areaOfInterestId) {
+            this.areaOfInterestId = areaOfInterestId;
+        }
 
         public String getAreaOfInterestName() { return areaOfInterestName; }
-        public void setAreaOfInterestName(String areaOfInterestName) { this.areaOfInterestName = areaOfInterestName; }
-
-        @Override
-        public String toString() {
-            return "AreaOfInterest{areaOfInterestId='" + areaOfInterestId + "', areaOfInterestName='" + areaOfInterestName + "'}";
+        public void setAreaOfInterestName(String areaOfInterestName) {
+            this.areaOfInterestName = areaOfInterestName;
         }
     }
 }
