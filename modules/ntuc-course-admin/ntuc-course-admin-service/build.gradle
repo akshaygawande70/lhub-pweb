@@ -1,0 +1,21 @@
+dependencies {
+	compile project(":modules:ntuc-course-admin:ntuc-course-admin-api")
+	compileOnly project(":modules:ntuc-common-api")
+	compileOnly project(":modules:ntuc-content-api")
+	compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+}
+
+buildService {
+	apiDir = "../ntuc-course-admin-api/src/main/java"
+}
+
+group = "svc.ntuc.nlh.course.admin"
+
+tasks.withType(JavaCompile) {
+
+	// Generated classes using Jodd library are unable to be read when compiled against JDK 11
+
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+}

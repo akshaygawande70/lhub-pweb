@@ -1,0 +1,10 @@
+Bundle-Name: ntuc-seo-bulkupload-api
+Bundle-SymbolicName: svc.ntuc.nlh.seo.bulkupload.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	svc.ntuc.nlh.seo.bulkupload.exception,\
+	svc.ntuc.nlh.seo.bulkupload.model,\
+	svc.ntuc.nlh.seo.bulkupload.service,\
+	svc.ntuc.nlh.seo.bulkupload.service.persistence
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../ntuc-seo-bulkupload-service/service.xml

@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-audit-trail-web
+Bundle-SymbolicName: web.ntuc.nlh.audit.trail
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.audit.trail.constants

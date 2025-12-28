@@ -1,0 +1,163 @@
+<?xml version="1.0"?>
+<!DOCTYPE service-builder PUBLIC "-//Liferay//DTD Service Builder 7.3.0//EN" "http://www.liferay.com/dtd/liferay-service-builder_7_3_0.dtd">
+
+<service-builder dependency-injector="ds"
+	package-path="svc.ntuc.nlh.parameter">
+	<namespace>NTUC_PARAMETER</namespace>
+	<!--<entity data-source="sampleDataSource" local-service="true" name="Foo" 
+		remote-service="false" session-factory="sampleSessionFactory" table="foo" 
+		tx-manager="sampleTransactionManager uuid="true""> -->
+	<entity name="ParameterGroup" local-service="true"
+		remote-service="false" table="ntuc_parameter_group">
+
+		<!-- PK fields -->
+		<column name="parameterGroupId" primary="true" type="long"></column>
+
+		<!-- Group instance -->
+		<column name="groupId" type="long"></column>
+
+		<!-- Audit fields -->
+		<column name="companyId" type="long" />
+		<column name="createdBy" type="long" />
+		<column name="createdDate" type="Date" />
+		<column name="modifiedBy" type="long" />
+		<column name="modifiedDate" type="Date" />
+
+		<column name="parentId" type="long"></column>
+		<column name="groupName" type="String"></column>
+		<column name="groupCode" type="String"></column>
+		<column name="description" type="String"></column>
+		<column name="deleted" type="Boolean"></column>
+
+		<!-- Order -->
+		<order by="asc">
+			<order-column name="groupName" />
+		</order>
+
+		<!-- Finder methods -->
+		<finder name="Code" return-type="ParameterGroup">
+			<finder-column name="groupCode" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="ParentId" return-type="Collection">
+			<finder-column name="parentId" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="GroupSite" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="GroupSiteCode" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="groupCode" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<!-- Reference to Group entity service -->
+		<reference entity="Group" package-path="com.liferay.portal"></reference>
+
+	</entity>
+	<entity name="Parameter" local-service="true"
+		remote-service="false" table="ntuc_parameter">
+
+		<!-- PK fields -->
+		<column name="parameterId" primary="true" type="long"></column>
+
+		<!-- Group instance -->
+		<column name="groupId" type="long"></column>
+		<column name="parameterGroupId" type="long" />
+
+		<!-- Audit fields -->
+		<column name="companyId" type="long"></column>
+		<column name="createdBy" type="long" />
+		<column name="createdDate" type="Date"></column>
+		<column name="modifiedBy" type="long" />
+		<column name="modifiedDate" type="Date"></column>
+
+		<column name="paramCode" type="String" />
+		<column name="paramName" type="String"/>
+		<column name="paramValue" type="String" />
+		<column name="description" type="String" />
+		<column name="deleted" type="Boolean"></column>
+
+		<!-- Finder methods -->
+		<finder name="Group" return-type="Collection">
+			<finder-column name="parameterGroupId" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="Code" return-type="Parameter">
+			<finder-column name="paramCode" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="GroupSite" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="GroupSiteCode" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="paramCode" />
+			<finder-column name="deleted" />
+		</finder>
+		
+		<finder name="GroupCode" return-type="Parameter">
+			<finder-column name="groupId" />
+			<finder-column name="parameterGroupId" />
+			<finder-column name="paramCode" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<!-- Reference to Group entity service -->
+		<reference entity="Group" package-path="com.liferay.portal"></reference>
+
+	</entity>
+	<entity remote-service="false" local-service="true"
+		name="ReservedParameter" table="ntuc_reserved_parameter">
+
+		<!-- PK fields -->
+		<column name="reservedParameterId" primary="true" type="long"></column>
+
+		<!-- Group instance -->
+		<column name="groupId" type="long"></column>
+		<column name="parameterId" type="long" />
+		<column name="parameterGroupId" type="long" />
+
+		<!-- Audit fields -->
+		<column name="companyId" type="long"></column>
+		<column name="createdBy" type="long" />
+		<column name="createdDate" type="Date"></column>
+		<column name="modifiedBy" type="long" />
+		<column name="modifiedDate" type="Date"></column>
+
+		<column name="paramCode" type="String" />
+		<column name="reservedBy" type="String" />
+
+		<!-- Finder methods -->
+		<finder name="Group" return-type="Collection">
+			<finder-column name="parameterGroupId" />
+		</finder>
+
+		<finder name="Code" return-type="ReservedParameter">
+			<finder-column name="paramCode" />
+		</finder>
+
+		<finder name="ReservedBy" return-type="Collection">
+			<finder-column name="reservedBy" />
+		</finder>
+
+		<!-- Reference to Group entity service -->
+		<reference entity="Group" package-path="com.liferay.portal"></reference>
+
+	</entity>
+
+	<!-- Exceptions -->
+	<exceptions>
+		<exception>ParameterValidation</exception>
+	</exceptions>
+
+</service-builder>

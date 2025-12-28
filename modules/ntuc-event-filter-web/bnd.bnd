@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-event-filter-web
+Bundle-SymbolicName: web.ntuc.nlh.eventfilter
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.eventfilter.constants

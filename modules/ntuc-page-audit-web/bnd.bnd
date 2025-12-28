@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-page-audit-web
+Bundle-SymbolicName: web.ntuc.page.audit.web
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.page.audit.web.constants

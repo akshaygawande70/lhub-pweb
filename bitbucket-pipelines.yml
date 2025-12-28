@@ -1,0 +1,29 @@
+image: gunwale/public
+
+clone:
+  depth: full              # SonarCloud scanner needs the full history to assign issues properly
+
+definitions:
+  caches:
+    sonar: ~/.sonar/cache  # Caching SonarCloud artifacts will speed up your build
+  steps:
+    - step: &build-test-sonarcloud
+        name: Build, test and analyze on SonarCloud
+        caches:
+          - gradle
+          - sonar
+        script:
+          - source /etc/profile.d/sonar.sh
+          - source /etc/profile.d/gradle.sh
+          - gradle -v
+          - gradle build
+          - sonar-scanner -h
+          - sonar-scanner -Dsonar.organization=ntuc-lhub -Dsonar.projectKey=ntuc-lhub_liferay-custom-modules -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources=modules/ntuc-audit-trail-web/src,modules/ntuc-common-api/src,modules/ntuc-content-api/src,modules/ntuc-course-admin/ntuc-course-admin-api/src,modules/ntuc-course-admin/ntuc-course-admin-service/src,modules/ntuc-course-admin-web/src,modules/ntuc-courses-web/src,modules/ntuc-date-filter-web/src,modules/ntuc-event-filter-web/src,modules/ntuc-group-parameter/ntuc-group-parameter-api/src,modules/ntuc-group-parameter/ntuc-group-parameter-service/src,modules/ntuc-login-web/src,modules/ntuc-media-filter-web/src,modules/ntuc-parameter-web/src,modules/ntuc-search-result-web/src,modules/ntuc-search-web/src,themes/ntuc-learning-hub/src,themes/ntuc-admin-panel-theme/src  -Dsonar.java.binaries=modules/ntuc-audit-trail-web/build/classes,modules/ntuc-common-api/build/classes,modules/ntuc-content-api/build/classes,modules/ntuc-course-admin/ntuc-course-admin-api/build/classes,modules/ntuc-course-admin/ntuc-course-admin-service/build/classes,modules/ntuc-course-admin-web/build/classes,modules/ntuc-courses-web/build/classes,modules/ntuc-date-filter-web/build/classes,modules/ntuc-event-filter-web/build/classes,modules/ntuc-group-parameter/ntuc-group-parameter-api/build/classes,modules/ntuc-group-parameter/ntuc-group-parameter-service/build/classes,modules/ntuc-login-web/build/classes,modules/ntuc-media-filter-web/build/classes,modules/ntuc-parameter-web/build/classes,modules/ntuc-search-result-web/build/classes,modules/ntuc-search-web/build/classes -Dsonar.java.libraries=modules/ntuc-audit-trail-web/build/libs,modules/ntuc-common-api/build/libs,modules/ntuc-content-api/build/libs,modules/ntuc-course-admin/ntuc-course-admin-api/build/libs,modules/ntuc-course-admin/ntuc-course-admin-service/build/libs,modules/ntuc-course-admin-web/build/libs,modules/ntuc-courses-web/build/libs,modules/ntuc-date-filter-web/build/libs,modules/ntuc-event-filter-web/build/libs,modules/ntuc-group-parameter/ntuc-group-parameter-api/build/libs,modules/ntuc-group-parameter/ntuc-group-parameter-service/build/libs,modules/ntuc-login-web/build/libs,modules/ntuc-media-filter-web/build/libs,modules/ntuc-parameter-web/build/libs,modules/ntuc-search-result-web/build/libs,modules/ntuc-search-web/build/libs -Dsonar.exclusions=**/*.png,**/*.jpg,**/*.jpeg,**/*.css,**/*.scss,**/*.map
+
+pipelines:                 # More info here: https://confluence.atlassian.com/bitbucket/configure-bitbucket-pipelines-yml-792298910.html
+  branches:
+    '**':
+      - step: *build-test-sonarcloud
+  pull-requests:
+    '**':
+      - step: *build-test-sonarcloud

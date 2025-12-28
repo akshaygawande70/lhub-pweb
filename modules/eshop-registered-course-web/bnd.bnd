@@ -1,0 +1,4 @@
+Bundle-Name: eshop-registered-course-web
+Bundle-SymbolicName: web.ntuc.eshop.registeredcourse
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.registeredcourse.constants

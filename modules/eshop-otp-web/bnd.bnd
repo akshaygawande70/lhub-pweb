@@ -1,0 +1,4 @@
+Bundle-Name: eshop-otp-web
+Bundle-SymbolicName: web.ntuc.eshop.otp
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.otp.constants

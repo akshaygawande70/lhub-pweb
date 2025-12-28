@@ -1,0 +1,218 @@
+apply plugin: "java"
+apply plugin: "jacoco"
+
+dependencies {
+
+    // ------------------------------------------------------------------
+    // Module dependency
+    // ------------------------------------------------------------------
+    compile project(
+        ":modules:ntuc-dt5-notification-service:ntuc-dt5-notification-service-api"
+    )
+    
+    compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+
+    // ------------------------------------------------------------------
+    // Liferay (compile-only)
+    // ------------------------------------------------------------------
+    compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+    compileOnly group: "org.slf4j", name: "slf4j-api"
+    compileOnly group: "com.sun.mail", name: "javax.mail", version: "1.6.2"
+    // JAX-RS Whiteboard constants (compile-time only; provided by Liferay at runtime)
+    compileOnly group: "org.osgi", name: "org.osgi.service.jaxrs", version: "1.0.0"
+    
+    // ------------------------------------------------------------------
+	// XML (dom4j) - compileOnly because Liferay runtime already provides it
+	// ------------------------------------------------------------------
+	compileOnly group: "org.dom4j", name: "dom4j", version: "2.1.4"
+	    
+
+    // ------------------------------------------------------------------
+    // AWS SDK v2 (compile-time)
+    // ------------------------------------------------------------------
+    compileOnly "software.amazon.awssdk:s3:2.29.6"
+    compileOnly "software.amazon.awssdk:regions:2.29.6"
+    compileOnly "software.amazon.awssdk:auth:2.29.6"
+    compileOnly "software.amazon.awssdk:sdk-core:2.29.6"
+    compileOnly "software.amazon.awssdk:apache-client:2.29.6"
+
+    // ------------------------------------------------------------------
+    // Test dependencies (PLAIN JUNIT, NO OSGi)
+    // ------------------------------------------------------------------
+    testCompile group: "junit", name: "junit", version: "4.13.2"
+    testCompile group: "org.mockito", name: "mockito-core", version: "3.12.4"
+    testCompileOnly group: "com.sun.mail", name: "javax.mail", version: "1.6.2"
+    testImplementation group: "org.dom4j", name: "dom4j", version: "2.1.4"
+    
+    testRuntime group: "org.glassfish.jersey.core", name: "jersey-common", version: "2.31"
+	testRuntime group: "org.glassfish.hk2", name: "hk2-api", version: "2.6.1"
+	testRuntime group: "org.glassfish.hk2", name: "hk2-utils", version: "2.6.1"
+	testRuntime group: "org.glassfish.hk2", name: "hk2-locator", version: "2.6.1"
+	testRuntime group: "javax.annotation", name: "javax.annotation-api", version: "1.3.2"
+    
+
+    // Needed because unit tests use javax.ws.rs.core.Response etc.
+    testCompile group: "javax.ws.rs", name: "javax.ws.rs-api", version: "2.1.1"
+
+    // REQUIRED: MdcUtil uses org.slf4j.MDC at runtime during unit tests
+    testCompile group: "org.slf4j", name: "slf4j-api", version: "1.7.36"
+
+    // Optional: only if you want a binding in tests (not required just to load MDC)
+    testRuntime group: "org.slf4j", name: "slf4j-simple", version: "1.7.36"
+
+    // Tests compile against ServiceBuilder/Liferay interfaces
+    testCompileOnly group: "com.liferay.portal", name: "release.dxp.api"
+
+    // Tests need Liferay classes at runtime too (NoClassDefFoundError fix)
+    testRuntime group: "com.liferay.portal", name: "release.dxp.api"
+
+    // Mockito needs ByteBuddy at runtime
+    testRuntime group: "net.bytebuddy", name: "byte-buddy", version: "1.10.22"
+    testRuntime group: "net.bytebuddy", name: "byte-buddy-agent", version: "1.10.22"
+}
+
+buildService {
+    apiDir = "../ntuc-dt5-notification-service-api/src/main/java"
+}
+
+group = "com.ntuc.notification"
+
+tasks.withType(JavaCompile) {
+    // Liferay 7.3 baseline
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+/**
+ * Single source of truth for "logic-only" (unit-testable) coverage scope.
+ */
+ext {
+    jacocoLogicIncludes = [
+        "com/ntuc/notification/rest/internal/**/*.class",
+        "com/ntuc/notification/audit/util/**/*.class"
+    ]
+
+    jacocoLogicExcludes = [
+        // Generated / SB / persistence / not unit-test friendly
+        "com/ntuc/notification/service/impl/**/*.class",
+        "com/ntuc/notification/service/base/**/*.class",
+        "com/ntuc/notification/service/persistence/impl/**/*.class",
+        "com/ntuc/notification/service/persistence/impl/constants/**/*.class",
+        "com/ntuc/notification/model/impl/**/*.class",
+
+        // Wiring / OSGi heavy
+        "com/ntuc/notification/service/internal/**/*.class",
+        "com/ntuc/notification/email/internal/**/*.class",
+        "com/ntuc/notification/cron/**/*.class",
+        "com/ntuc/notification/onetime/internal/**/*.class",
+
+        // JAX-RS resource wiring classes (if any)
+        "com/ntuc/notification/rest/**/*.class"
+    ]
+}
+
+/**
+ * Default JaCoCo report: full module coverage (good for visibility).
+ */
+jacocoTestReport {
+    dependsOn test
+
+    executionData file("${buildDir}/jacoco/test.exec")
+
+    reports {
+        xml.enabled = true
+        html.enabled = true
+        csv.enabled = false
+    }
+}
+
+/**
+ * Logic-only JaCoCo report (focused HTML report).
+ *
+ * Run:
+ * gradlew.bat :modules:ntuc-dt5-notification-service:ntuc-dt5-notification-service-service:jacocoLogicReport
+ *
+ * Open:
+ * modules/.../build/reports/jacoco/logic/html/index.html
+ */
+task jacocoLogicReport(type: JacocoReport) {
+    dependsOn test
+
+    executionData file("${buildDir}/jacoco/test.exec")
+
+    sourceDirectories.setFrom(files("src/main/java"))
+    additionalSourceDirs.setFrom(files("src/main/java"))
+
+    // IMPORTANT: use fileTree("path") (string arg), NOT fileTree(dir: "path")
+    def mainClasses = fileTree("${buildDir}/classes/java/main") {
+        include jacocoLogicIncludes
+        exclude jacocoLogicExcludes
+    }
+
+    classDirectories.setFrom(mainClasses)
+
+    reports {
+        xml.enabled = true
+        html.enabled = true
+        csv.enabled = false
+
+        html.destination file("${buildDir}/reports/jacoco/logic/html")
+        xml.destination file("${buildDir}/reports/jacoco/logic/jacocoLogicReport.xml")
+    }
+}
+
+/**
+ * Coverage gate for logic-only scope.
+ *
+ * Run:
+ * gradlew.bat ...:jacocoTestCoverageVerification
+ */
+jacocoTestCoverageVerification {
+    dependsOn test
+
+    executionData file("${buildDir}/jacoco/test.exec")
+
+    // IMPORTANT: use fileTree("path"), NOT fileTree(dir: "path")
+    def mainClasses = fileTree("${buildDir}/classes/java/main") {
+        include jacocoLogicIncludes
+        exclude jacocoLogicExcludes
+    }
+
+    classDirectories.setFrom(mainClasses)
+
+    doFirst {
+        // Fail with a readable message instead of GradleException: null
+        if (mainClasses.files == null || mainClasses.files.isEmpty()) {
+            throw new GradleException(
+                "JaCoCo logic-only scope matched 0 classes. " +
+                "Check jacocoLogicIncludes/jacocoLogicExcludes and the path: ${buildDir}/classes/java/main"
+            )
+        }
+    }
+
+    violationRules {
+        rule {
+            enabled = true
+            element = "BUNDLE"
+
+            // Start realistic; raise later
+            limit {
+                counter = "INSTRUCTION"
+                value = "COVEREDRATIO"
+                minimum = 0.25
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = 0.20
+            }
+        }
+    }
+}
+
+// Make gradle check fail if logic coverage drops
+check.dependsOn jacocoTestCoverageVerification

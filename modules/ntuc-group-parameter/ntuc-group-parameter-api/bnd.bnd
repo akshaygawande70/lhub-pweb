@@ -1,0 +1,10 @@
+Bundle-Name: ntuc-group-parameter-api
+Bundle-SymbolicName: svc.ntuc.nlh.parameter.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	svc.ntuc.nlh.parameter.exception,\
+	svc.ntuc.nlh.parameter.model,\
+	svc.ntuc.nlh.parameter.service,\
+	svc.ntuc.nlh.parameter.service.persistence
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../ntuc-group-parameter-service/service.xml

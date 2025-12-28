@@ -1,0 +1,438 @@
+.box-input {
+	position: relative;
+	margin-top: 1rem;
+
+	label {
+		position: absolute;
+		padding-left: 1rem;
+		font-size: .8rem;
+		padding-top: 5px;
+		padding-bottom: 5px;
+		color: #aaa;
+		z-index: 99;
+
+		@media screen and (max-width:769px) {
+			font-size: 10px;
+		}
+	}
+
+	input[type="date"]::-webkit-inner-spin-button,
+	input[type="date"]::-webkit-calendar-picker-indicator {
+		position: absolute;
+		right: 0;
+		top: 5px;
+		font-size: 2rem;
+		opacity: 1;
+		right: 5px;
+		opacity: 0;
+		cursor: pointer;
+
+	}
+
+	input:-webkit-autofill,
+	input:-webkit-autofill:hover,
+	input:-webkit-autofill:focus,
+	textarea:-webkit-autofill,
+	textarea:-webkit-autofill:hover,
+	textarea:-webkit-autofill:focus,
+	select:-webkit-autofill,
+	select:-webkit-autofill:hover,
+	select:-webkit-autofill:focus {
+		-webkit-box-shadow: 0 0 0px 1000px rgb(255, 255, 255) inset !important;
+		border-top: 1px solid #eee !important;
+		border-left: 1px solid #eee !important;
+		border-right: 1px solid #eee !important;
+	}
+
+	.cs-form {
+		width: 100%;
+		height: 55px;
+		padding-left: 1rem;
+		padding-top: 1.4rem;
+		border-radius: 10px;
+		border: 2px solid #dadada;
+		background-color: #ffffff0d !important;
+		color: #353535;
+
+		@media screen and (max-width:767px) {
+			font-size: 12px;
+		}
+
+		&::placeholder {
+			color: #aaa !important;
+			font-size: 1rem;
+			font-weight: 600 !important;
+		}
+
+		&.date {
+			height: 55px;
+			padding-top: 20px;
+			text-transform: uppercase;
+
+			&:before {
+				content: " ";
+				position: absolute;
+				right: 20px;
+				top: 14px;
+				font-family: "OpenSans-Reguler";
+				font-weight: 600;
+				content: "\f073";
+				font-size: 1.3rem;
+				color: #aaa;
+				border-left: 1px solid #aaa;
+				padding-left: 1rem;
+			}
+		}
+
+		&.option {
+			padding-top: 0rem !important;
+			width: 50% !important;
+			font-size: 1rem;
+			background: url(/o/ntuclearninghub-commerce-theme/images/arrow.jpg) no-repeat right;
+			-webkit-appearance: none;
+
+			@media screen and (max-width:767px) {
+				font-size: 12px;
+				padding-top: 10px !important;
+			}
+		}
+
+
+	}
+
+	.cs-place {
+		width: 100%;
+		height: 55px;
+		padding-left: 1rem;
+		padding-top: 0rem;
+		border-radius: 10px;
+		border: 2px solid #dadada;
+	}
+
+	.has-success {
+		.success-field {
+			border-bottom: 3px solid #d6f9c0 !important;
+
+		}
+
+		&:before {
+			content: " ";
+			background-image: url('/o/ntuclearninghub-commerce-theme/images/asset_commerce/tick_icon.png');
+			position: absolute;
+			background-size: 100%;
+			display: block;
+			background-repeat: no-repeat;
+			object-fit: contain;
+			height: 20px;
+			width: 20px;
+			right: 20px;
+			top: 19px;
+		}
+	}
+
+	&.pswd {
+		label {
+			z-index: 90 !important;
+		}
+
+		&.has-error {
+			.box-info-required {
+				display: block ;
+			}
+			.dnone{
+				display: none !important ;
+			}
+			.dshow{
+				display: block !important ;
+			}
+			.info-required {
+				@media (max-width:769px) {
+					right: 70px;
+				}
+			}
+		}
+
+		&.has-success {
+			.info-required {
+				@media (max-width:769px) {
+					right: 70px;
+				}
+			}
+		}
+
+		.has-success {
+			&:before {
+				right: 20px !important;
+			}
+
+			.act_hide {
+				right: 50px;
+			}
+
+			.act_show {
+				right: 50px;
+			}
+
+		}
+
+		.has-error {
+			.error-field {
+				border: 1px solid red !important;
+
+			}
+
+			&:before {
+				content: " ";
+				background-image: url('/o/ntuclearninghub-commerce-theme/images/asset_commerce/Cross.png');
+				position: absolute;
+				background-size: 100%;
+				display: block;
+				background-repeat: no-repeat;
+				object-fit: contain;
+				height: 20px;
+				width: 20px;
+				right: 20px;
+				top: 19px;
+			}
+
+			// .maxLength,
+			// .required,
+			// .password1_custom,
+			// .minLength,
+			// .number,
+			// .acceptFiles,
+			// .alpha,
+			// .alphanum,
+			// .digits,
+			// .email,
+			// .equalTo,
+			// .max,
+			// .min,
+			// .range,
+			// .url,
+			// .rangeLength,
+			// .contact-person-email-address_custom,
+			// .email_custom,
+			// .dob_custom {
+			// 	position: absolute !important;
+			// 	display: block !important;
+			// 	border: 1px solid #eee !important;
+			// 	border-radius: 10px;
+			// 	color: #000;
+			// 	background-color: #eee !important;
+			// 	font-weight: 550;
+			// 	width: auto;
+			// 	max-width: 200px;
+			// 	left: 100px;
+			// 	top: 0px;
+			// 	font-size: 10px;
+			// 	z-index: 99 !important;
+			// 	padding: 15px 10px;
+			// }
+
+			.act_hide {
+				color: red;
+				right: 50px;
+			}
+
+			.act_show {
+				color: red;
+				right: 50px;
+			}
+
+			.info-required {
+				@media (max-width:769px) {
+					right: 70px;
+				}
+			}
+		}
+	}
+
+	.has-error {
+		.error-field {
+			border: 1px solid red !important;
+
+		}
+
+		&:before {
+			content: " ";
+			background-image: url('/o/ntuclearninghub-commerce-theme/images/asset_commerce/Cross.png');
+			position: absolute;
+			background-size: 100%;
+			display: block;
+			background-repeat: no-repeat;
+			object-fit: contain;
+			height: 20px;
+			width: 20px;
+			right: 20px;
+			top: 19px;
+		}
+
+		// .maxLength,
+		// .required,
+		// .password1_custom,
+		// .minLength,
+		// .number,
+		// .acceptFiles,
+		// .alpha,
+		// .alphanum,
+		// .digits,
+		// .email,
+		// .equalTo,
+		// .max,
+		// .min,
+		// .range,
+		// .url,
+		// .rangeLength,
+		// .contact-person-email-address_custom,
+		// .email_custom,
+		// .dob_custom {
+		// 	position: absolute !important;
+		// 	display: block !important;
+		// 	border: 1px solid #eee !important;
+		// 	border-radius: 10px;
+		// 	color: #ae3434;
+		// 	background-color: #eeeeee6e;
+		// 	font-weight: 550;
+		// 	width: 200px;
+		// 	right: -210px;
+		// 	top: -5px;
+		// 	font-size: 11px;
+		// 	padding: 15px 10px;
+		// }
+
+
+	}
+
+	&.form-check {
+		.input-checkbox-wrapper input[type='checkbox']:checked::after {
+			opacity: 0;
+		}
+
+		label {
+			display: block;
+			position: relative;
+			padding-top: 0px;
+		}
+
+		.has-error:before {
+			opacity: 0;
+		}
+
+		.has-success:before {
+			opacity: 0;
+		}
+
+		.form-group {
+			margin-bottom: 0px;
+		}
+	}
+
+}
+.act_show {
+	display: none;
+	color: #b3b3b3;
+	position: absolute;
+	right: 10px;
+	top: 20px;
+}
+
+.act_hide {
+	color: #b3b3b3;
+	position: absolute;
+	right: 10px;
+	top: 20px;
+}
+
+.info-required {
+	position: absolute;
+	z-index: 99;
+	width: 20px;
+	right: -25px;
+	top: 15px;
+	transition: 1s;
+
+	@media screen and (max-width:768px) {
+		right: 35px;
+		top: 17px;
+	}
+
+	img {
+		width: 18px;
+		height: 18px;
+	}
+
+	.box-info-required {
+		display: none;
+		width: 180px;
+		font-size: 10px;
+		background: #eee;
+		padding: 10px;
+		position: absolute;
+		top: -30px;
+		left: 20px;
+		border-radius: 8px;
+
+		@media screen and (max-width:768px) {
+			left: -185px;
+			top: 35px;
+		}
+
+		ul {
+			padding-inline-start: 20px;
+
+			li {
+				padding: 0px;
+			}
+		}
+		.close{
+			position: absolute;
+			top: 0;
+			right: 0;
+			font-size: 12px;
+		}
+	}
+
+	&:hover {
+		cursor: pointer;
+
+		.box-info-required {
+			display: block;
+		}
+	}
+
+}
+
+.fg-password {
+	margin-top: 5rem;
+	margin-bottom: 8rem;
+
+	.wd-fg {
+		width: 500px;
+		margin: auto;
+
+		@media screen and (max-width:1000px) {
+			width: auto;
+		}
+
+		.box-input .cs-form {
+			height: 50px;
+		}
+
+		.title {
+			font-size: 1.8rem;
+			font-weight: bold;
+			text-align: center;
+		}
+
+		.abstrak {
+			margin-bottom: 1rem;
+			font-weight: 550;
+			font-size: 15px;
+		}
+
+		.btn-grey {
+			padding: 10px;
+		}
+	}
+}

@@ -1,0 +1,8 @@
+Bundle-Name: eshop-cart-fragment
+Bundle-SymbolicName: eshop.cart.fragment
+Bundle-Version: 1.0.0
+Fragment-Host: com.liferay.commerce.cart.content.web;bundle-version="3.0.17"
+Portal-Bundle-Version: 7.3.10
+Require-Capability:\
+	soy;\
+		filter:="(type=commerce-cart-taglib)"

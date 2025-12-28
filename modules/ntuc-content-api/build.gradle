@@ -1,0 +1,5 @@
+dependencies {
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+	compileOnly project(":modules:ntuc-common-api")
+	compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+}

@@ -1,0 +1,10 @@
+Bundle-Name: eshop-otp-api
+Bundle-SymbolicName: svc.ntuc.nlh.otp.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	svc.ntuc.nlh.otp.exception,\
+	svc.ntuc.nlh.otp.model,\
+	svc.ntuc.nlh.otp.service,\
+	svc.ntuc.nlh.otp.service.persistence
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../eshop-otp-service/service.xml

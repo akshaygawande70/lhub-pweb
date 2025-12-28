@@ -1,0 +1,62 @@
+@font-face {
+  font-family: "OpenSans-Reguler";
+  src: url("opensans-regular-webfont.woff");
+  font-display: swap;
+  font-weight: normal;
+}
+/* @font-face {
+  font-family: "SourceSans-Semibold";
+  src: url("Sourcesans/SourceSansPro-Semibold.otf");
+  font-display: swap;
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: "Publico-Bold";
+  src: url("Publico/Publico-Text-Web-Bold.otf");
+  font-display: swap;
+  font-weight: normal;
+} */
+
+@font-face {
+  font-family: "Roboto";
+  src: url("Roboto-Regular.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Roboto-Light";
+  src: url("Roboto-Light.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Roboto-Bold";
+  src: url("Roboto-Bold.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Roboto-Medium";
+  src: url("Roboto-Medium.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Roboto-Thin";
+  src: url("Roboto-Thin.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Montserrat-Regular";
+  src: url("Montserrat-Regular.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Montserrat-Thin";
+  src: url("Montserrat-Thin.ttf");
+  font-display: swap;
+  font-weight: normal;
+}

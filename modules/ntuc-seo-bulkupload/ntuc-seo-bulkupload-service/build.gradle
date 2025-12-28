@@ -1,0 +1,11 @@
+dependencies {
+	compile project(":modules:ntuc-seo-bulkupload:ntuc-seo-bulkupload-api")
+
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+}
+
+buildService {
+	apiDir = "../ntuc-seo-bulkupload-api/src/main/java"
+}
+
+group = "svc.ntuc.nlh.seo.bulkupload"

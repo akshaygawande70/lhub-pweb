@@ -1,0 +1,19 @@
+dependencies {
+	compile project(":modules:ntuc-dt5-notification-service:ntuc-dt5-notification-service-api")
+
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+}
+
+buildService {
+	apiDir = "../ntuc-dt5-notification-service-api/src/main/java"
+}
+
+group = "com.ntuc.notification"
+
+tasks.withType(JavaCompile) {
+
+	// Generated classes using Jodd library are unable to be read when compiled against JDK 11
+
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+}

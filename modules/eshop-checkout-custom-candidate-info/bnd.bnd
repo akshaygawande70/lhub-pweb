@@ -1,0 +1,5 @@
+Bundle-Name: eshop-checkout-custom-candidate-info
+Bundle-SymbolicName: web.ntuc.eshop.checkout.custom.candidate.info
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.checkout.custom.candidate.info.constants
+Web-ContextPath: /custom-candidate-info

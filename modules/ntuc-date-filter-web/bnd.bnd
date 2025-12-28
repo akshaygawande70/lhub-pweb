@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-date-filter-web
+Bundle-SymbolicName: web.ntuc.nlh.datefilter
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.datefilter.constants

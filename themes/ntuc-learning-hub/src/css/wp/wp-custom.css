@@ -1,0 +1,96 @@
+.paginationjs li.disabled{
+	display: none;
+}
+.imgeffect .imgwrap {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+h3.title-1{
+	margin-top: 10px;
+}
+
+li.quick-link{
+	cursor: pointer;
+}
+
+#resultsearch li a, #resultsearch div.descripts a{
+	color: #333;
+}.elementor-column-gap-default>.elementor-row>.elementor-column>.elementor-element-populated { padding: 0 !important; }
+
+.fa, .far, .fas { font-family: OpenSans,Arial,sans-serif !important; font-weight: normal !important; line-height: normal !important; }
+.footer-container .fas { display: block !important; }
+.socials a .fab { line-height: 30px !important; }
+
+@media (max-width:1360px){
+	#st-2 .st-btn {
+		font-size: 13px !important;
+		height: 32px !important;
+		padding: 5px !important;
+		width: 32px !important;
+	}
+	#st-2 .st-btn > img {
+		height: 20px !important;
+		width: 20px !important;
+	}
+}
+
+.price-container{
+	display: none !important;
+}
+
+.paginationjs li.disabled{
+	display: none;
+}
+.imgeffect .imgwrap {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+h3.title-1{
+	margin-top: 10px;
+}
+
+li.quick-link{
+	cursor: pointer;
+}
+
+#resultsearch li a, #resultsearch div.descripts a{
+	color: #333;
+}.elementor-column-gap-default>.elementor-row>.elementor-column>.elementor-element-populated { padding: 0 !important; }
+
+.fa, .far, .fas { font-family: OpenSans,Arial,sans-serif !important; font-weight: normal !important; line-height: normal !important; }
+.footer-container .fas { display: block !important; }
+.socials a .fab { line-height: 30px !important; }
+
+@media (max-width:1360px){
+	#st-2 .st-btn {
+		font-size: 13px !important;
+		height: 32px !important;
+		padding: 5px !important;
+		width: 32px !important;
+	}
+	#st-2 .st-btn > img {
+		height: 20px !important;
+		width: 20px !important;
+	}
+}
+
+.price-container{
+	display: none !important;
+}
+
+.sly-wrap .btn {
+	line-height: 50px !important;
+}
+
+#schedule-list td .download-schedule{
+	margin-top: 10px;
+}
+
+.dataTables_wrapper div.dataTables_length select {
+    width: 100% !important;
+    display: inline-block;
+}

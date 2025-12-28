@@ -1,0 +1,5 @@
+Bundle-Name: eshop-account-fragment
+Bundle-SymbolicName: eshop.account.fragment
+Bundle-Version: 1.0.0
+Fragment-Host: com.liferay.commerce.account.web;bundle-version="3.0.12"
+Portal-Bundle-Version: 7.3.10

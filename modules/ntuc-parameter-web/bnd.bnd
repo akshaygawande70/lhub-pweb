@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-parameter-web
+Bundle-SymbolicName: web.ntuc.nlh.parameter
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.parameter.constants

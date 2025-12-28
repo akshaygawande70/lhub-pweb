@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!DOCTYPE service-builder PUBLIC "-//Liferay//DTD Service Builder 7.3.0//EN" "http://www.liferay.com/dtd/liferay-service-builder_7_3_0.dtd">
+
+<service-builder dependency-injector="ds"
+	package-path="svc.ntuc.nlh.comments">
+	<!--<entity data-source="sampleDataSource" local-service="true" name="Foo" 
+		remote-service="false" session-factory="sampleSessionFactory" table="foo" 
+		tx-manager="sampleTransactionManager uuid="true""> -->
+	<namespace>NTUC_COMMENT</namespace>
+	<entity name="Comment" local-service="true"
+		remote-service="true" uuid="true">
+
+		<!-- PK fields -->
+
+		<column name="commentId" primary="true" type="long"></column>
+
+		<!-- Group instance -->
+
+		<column name="groupId" type="long"></column>
+
+		<!-- Audit fields -->
+
+		<column name="companyId" type="long" />
+		<column name="userId" type="long" />
+		<column name="userName" type="String" />
+		<column name="createDate" type="Date" />
+		<column name="modifiedDate" type="Date" />
+		<column name="commentText" type="String" />
+		<column name="commentName" type="String" />
+		<column name="commentEmail" type="String" />
+		<column name="commentOption" type="boolean" />
+		<column name="commentStatus" type="boolean" />
+
+		<!-- Order -->
+		<order by="desc">
+			<order-column name="createDate" />
+		</order>
+
+		<!-- Finder Methods -->
+		<finder name="Name" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="commentName" />
+		</finder>
+
+		<finder name="Email" return-type="Comment">
+			<finder-column name="groupId" />
+			<finder-column name="commentEmail" />
+		</finder>
+
+		<!-- Reference to Group entity service -->
+
+		<reference entity="Group" package-path="com.liferay.portal"></reference>
+
+		<!-- Entity services needed for the integration to Asset framework -->
+
+		<reference entity="AssetEntry"
+			package-path="com.liferay.portlet.asset"></reference>
+		<reference entity="AssetLink"
+			package-path="com.liferay.portlet.asset"></reference>
+		<reference entity="AssetTag"
+			package-path="com.liferay.portlet.asset"></reference>
+
+	</entity>
+</service-builder>

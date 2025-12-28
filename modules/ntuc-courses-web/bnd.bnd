@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-courses-web
+Bundle-SymbolicName: web.ntuc.nlh.courses
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.courses.constants

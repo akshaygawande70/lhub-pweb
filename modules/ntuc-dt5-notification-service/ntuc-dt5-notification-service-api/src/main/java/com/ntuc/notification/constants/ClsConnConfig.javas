@@ -1,0 +1,30 @@
+// ClsConnConfig.java
+package com.ntuc.notification.constants;
+
+public final class ClsConnConfig {
+    private ClsConnConfig() {}
+
+    // Auth Details
+    public static final String AUTH_CLIENT_ID = "Y2xpZW50LWlkLXZhbHVl";
+    public static final String AUTH_CLIENT_SECRET = "Y2xpZW50LXNlY3JldC12YWx1ZQ==";
+    
+    // Course Details
+    public static final String AUTH_BASE_URL               = "https://mock.apidog.com/m1/1000033-986024-default";
+    // public static final String AUTH_BASE_URL               = "http://localhost:3005";
+    public static final String AUTH_ENDPOINT               = "/identity/connect/token";
+    public static final String AUTH_METHOD                 = "POST";
+    public static final String COURSE_DETAILS_ENDPOINT     = "/integrationapi/v1/pweb/courses";
+    public static final String COURSE_DETAILS_METHOD       = "POST";
+
+    // Latest Course Schedules
+    public static final String COURSE_SCHEDULES_ENDPOINT   = "/integrationapi/v1/pweb/courses/{courseCode}/schedules";
+    public static final String COURSE_SCHEDULES_METHOD     = "GET";
+
+    // Timeouts & retries
+    public static final int    HTTP_CONNECT_TIMEOUT_MS     = 50000;
+    public static final int    HTTP_READ_TIMEOUT_MS        = 10000;
+    public static final int    AUTH_RETRY_COUNT            = 3;
+    public static final int    AUTH_RETRY_INTERVAL_SEC     = 10;
+    public static final int    COURSE_RETRY_COUNT          = 3;
+    public static final int    COURSE_RETRY_INTERVAL_SEC   = 10;
+}

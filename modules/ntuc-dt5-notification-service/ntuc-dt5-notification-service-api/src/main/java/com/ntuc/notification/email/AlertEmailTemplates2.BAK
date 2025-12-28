@@ -1,0 +1,133 @@
+package com.ntuc.notification.email;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+
+public final class AlertEmailTemplates2 {
+
+    private AlertEmailTemplates2() {}
+
+    /** Short, human-friendly subject */
+    public static final String SUBJECT =
+        "[${severity:CRITICAL}] ${alertType:System Alert} - ${system:DT5} (${env:prod})";
+
+    /** Minimal body with only business-useful fields (others live in audit logs) */
+    public static final String BODY =
+        "Dear ${notifyGroup:Team},\n\n"
+      + "This is to inform you that the system has detected an event.\n\n"
+      + "${summary?Message   : ${summary}\n}"
+      + "${error?Details:\n${error}\n}"
+      + "${ntucDTId?Notification Id   : ${notificationId}\n}"
+      + "\n"
+      + "Time: ${occurredAt}\n"
+      + "\n"
+      + "Thank you,\n"
+      + "NTUC LearningHub Pte Ltd\n\n"
+      + "This is a system generated email. Please do not reply directly to this email.";
+
+    // ===== Minimal renderer (Java 8+) =====
+    public static String render(String template, Map<String, Object> ctx) {
+        if (template == null) return "";
+
+        String out = template;
+
+        // 1) Placeholders FIRST: ${key[:default]}
+        java.util.regex.Matcher ph = Regexes.PLACEHOLDER.matcher(out);
+        StringBuffer sbPh = new StringBuffer();
+        while (ph.find()) {
+            String key = ph.group(1);
+            String def = ph.group(2);
+            String v = val(ctx, key);
+            if (isBlank(v)) v = def; // may be null or literal
+            ph.appendReplacement(sbPh, Matcher.quoteReplacement(v == null ? "" : v));
+        }
+        ph.appendTail(sbPh);
+        out = sbPh.toString();
+
+        // 2) Optional sections AFTER placeholders: ${key? ... }
+        java.util.regex.Matcher opt = Regexes.OPTIONAL.matcher(out);
+        StringBuffer sbOpt = new StringBuffer();
+        while (opt.find()) {
+            String key = opt.group(1);
+            String content = opt.group(2);
+            String v = val(ctx, key);
+            opt.appendReplacement(sbOpt, isBlank(v) ? "" : Matcher.quoteReplacement(content));
+        }
+        opt.appendTail(sbOpt);
+        out = sbOpt.toString();
+
+        // 3) Tidy up
+        out = out.replaceAll("(?m)^[ \\t]+$", "");  // strip whitespace-only lines
+        out = out.replaceAll("\\n{3,}", "\n\n");    // collapse 3+ newlines to 2
+        return out.trim();
+    }
+
+    /** Normalize commonly-used ctx entries and keep things tidy */
+    public static void normalizeCommon(Map<String, Object> ctx) {
+        if (ctx == null) return;
+
+        String now = DateFormats.nowString();
+        ctx.putIfAbsent("now", now);
+        // ensure occurredAt exists so "Time: ${occurredAt}" always renders
+        ctx.putIfAbsent("occurredAt", now);
+
+        // Optional: softly trim an overly long error so email stays clean
+        truncate(ctx, "error", 2000);
+    }
+
+    // ===== internals =====
+
+    private static void truncate(Map<String,Object> ctx, String key, int max) {
+        Object v = ctx.get(key);
+        if (v == null) return;
+        String s = String.valueOf(v);
+        if (s.length() > max) ctx.put(key, s.substring(0, Math.max(0, max - 3)) + "...");
+    }
+
+    private static String val(Map<String, Object> ctx, String key) {
+        if ("now".equals(key)) return DateFormats.nowString();
+        if (ctx == null) return null;
+        Object v = ctx.get(key);
+        return v == null ? null : String.valueOf(v);
+    }
+
+    private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+
+    private static final class Regexes {
+        // Optional block allows inner ${...} (already resolved now, but safe)
+        private static final java.util.regex.Pattern OPTIONAL =
+            java.util.regex.Pattern.compile("\\$\\{([a-zA-Z0-9_]+)\\?((?:[^}]|\\$\\{[^}]*\\})*)\\}");
+        private static final java.util.regex.Pattern PLACEHOLDER =
+            java.util.regex.Pattern.compile("\\$\\{([a-zA-Z0-9_]+)(?::([^}]*))?\\}");
+    }
+
+    private static final class DateFormats {
+        private static String nowString() {
+            java.time.format.DateTimeFormatter fmt =
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            return java.time.LocalDateTime.now().format(fmt);
+        }
+    }
+
+    // --- quick self-test ---
+    public static void main(String[] args) {
+        Map<String,Object> ctx = new HashMap<>();
+        ctx.put("notifyGroup", "DevOps, Integration Team");
+        ctx.put("severity", "CRITICAL");
+        ctx.put("alertType", "System Alert");
+        ctx.put("system", "DT5");
+        ctx.put("env", "prod");
+        ctx.put("courseCode", "SCADF11");
+        ctx.put("courseTitle", "(SCTP) ASSOCIATE DATA ANALYST");
+        ctx.put("ntucDTId", "10293847");
+        ctx.put("error", "Course detail sync failed due to CLS API timeout.");
+        AlertEmailTemplates2.normalizeCommon(ctx);
+
+        String subject = AlertEmailTemplates2.render(AlertEmailTemplates2.SUBJECT, ctx);
+        String body    = AlertEmailTemplates2.render(AlertEmailTemplates2.BODY, ctx);
+
+        System.out.println(subject);
+        System.out.println(body);
+    }
+}

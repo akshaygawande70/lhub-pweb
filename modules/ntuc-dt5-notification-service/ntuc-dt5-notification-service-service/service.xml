@@ -1,0 +1,226 @@
+<?xml version="1.0"?>
+<!DOCTYPE service-builder PUBLIC "-//Liferay//DTD Service Builder 7.3.0//EN" "http://www.liferay.com/dtd/liferay-service-builder_7_3_0.dtd">
+
+<service-builder package-path="com.ntuc.notification">
+	<namespace>ntucnicesbdigital</namespace>
+
+	<entity name="NtucSB" local-service="true" cache-enabled="false"
+		table="ntuc_service_dt_notification">
+		<column name="ntucDTId" type="long" primary="true" />
+		<column name="companyId" type="long" />
+		<column name="courseCode" type="String" />
+		<column name="courseType" type="String" />
+		<column name="notificationDate" type="Date" />
+		<column name="systemDate" type="Date" />
+		<column name="notificationId" type="String" />
+        <column name="event" type="String"></column>
+        <column name="changeFrom" type="String"></column>
+        <column name="processingStatus" type="String"></column>
+        <column name="courseStatus" type="String"></column>
+        <column name="isCriticalProcessed" type="boolean"></column>
+		<column name="isNonCriticalProcessed" type="boolean" />
+		<column name="isCronProcessed" type="boolean" />
+		<column name="canRetry" type="boolean" />
+		<column name="lastRetried" type="Date" />
+		<column name="totalRetries" type="int" />
+		<column name="isRowLockFailed" type="boolean" />
+		<order by="desc">
+			<order-column name="systemDate"></order-column>
+		</order>
+
+		<finder return-type="Collection" name="isRowLockFailed">
+			<finder-column name="isRowLockFailed" comparator="="></finder-column>
+		</finder>
+
+		<finder name="CourseCodeAndEvent" return-type="Collection">
+			<finder-column name="courseCode" />
+    		<finder-column name="event" />
+		</finder>
+
+		<finder name="CourseCodeEventAndChangeFrom" return-type="Collection">
+		    <finder-column name="courseCode" />
+		    <finder-column name="event" />
+		    <finder-column name="changeFrom" comparator="LIKE" />
+		</finder>
+
+		<finder name="RecordsByChangeFrom" return-type="Collection" >
+			<finder-column name="changeFrom" comparator="LIKE"></finder-column>
+		</finder>
+
+        <finder name="StatusAndIsCronProcessed" return-type="Collection">
+		    <finder-column name="event" />
+		    <finder-column name="isCronProcessed" />
+		</finder>
+
+		<finder name="EventAndIsCriticalProcessed" return-type="Collection">
+		    <finder-column name="event" />
+		    <finder-column name="isCriticalProcessed" />
+		</finder>
+
+		<finder name="EventAndIsNonCriticalProcessed" return-type="Collection">
+		    <finder-column name="event" />
+		    <finder-column name="isNonCriticalProcessed" />
+		</finder>
+	</entity>
+
+	<entity name="AuditLog"
+    local-service="true"
+    remote-service="false"
+    table="ntuc_audit_log"
+    cache-enabled="false">
+
+	    <column name="auditLogId" type="long" primary="true" />
+	
+	    <!-- Liferay standard timestamps -->
+	    <column name="createDate" type="Date" />
+	    <column name="modifiedDate" type="Date" />
+	
+	    <!-- Tenant / actor -->
+	    <column name="groupId" type="long" />
+	    <column name="companyId" type="long" />
+	    <column name="userId" type="long" />
+	
+	    <!-- Business keys -->
+	    <column name="courseCode" type="String" />
+	    <column name="ntucDTId" type="long" />
+	
+	    <!-- Timeline -->
+	    <column name="startTimeMs" type="long" />
+	    <column name="endTimeMs" type="long" />
+	    <column name="durationMs" type="long" />
+	
+	    <!-- Correlation -->
+	    <column name="correlationId" type="String" />
+	    <column name="jobRunId" type="String" />
+	    <column name="requestId" type="String" />
+	    <column name="eventId" type="String" />
+	
+	    <!-- Classification -->
+	    <column name="severity" type="String" />
+	    <column name="status" type="String" />
+	    <column name="step" type="String" />
+	    <column name="category" type="String" />
+	
+	    <!-- Human-readable summary -->
+	    <column name="message" type="String" />
+	
+	    <!-- Error -->
+	    <column name="errorCode" type="String" />
+	    <column name="errorMessage" type="String" />
+	    <column name="exceptionClass" type="String" />
+	
+	    <!-- Email dedupe -->
+	    <column name="alertFingerprint" type="String" />
+	
+	    <!-- Stack -->
+	    <column name="stackTraceHash" type="String" />
+	    <column name="stackTraceTruncated" type="Blob" />
+	
+	    <!-- Details -->
+	    <column name="detailsJson" type="Blob" />
+	
+	    <order by="desc">
+	        <order-column name="startTimeMs" />
+	    </order>
+	
+	    <!-- Existing Finders -->
+	    <finder name="CorrelationId" return-type="Collection">
+	        <finder-column name="correlationId" />
+	    </finder>
+	
+	    <finder name="JobRunId" return-type="Collection">
+	        <finder-column name="jobRunId" />
+	    </finder>
+	
+	    <finder name="RequestId" return-type="Collection">
+	        <finder-column name="requestId" />
+	    </finder>
+	
+	    <finder name="EventId" return-type="Collection">
+	        <finder-column name="eventId" />
+	    </finder>
+	
+	    <finder name="CourseCode" return-type="Collection">
+	        <finder-column name="courseCode" />
+	    </finder>
+	
+	    <finder name="NtucDTId" return-type="Collection">
+	        <finder-column name="ntucDTId" />
+	    </finder>
+	
+	    <finder name="CategoryStatusSeverity" return-type="Collection">
+	        <finder-column name="category" />
+	        <finder-column name="status" />
+	        <finder-column name="severity" />
+	    </finder>
+	
+	    <finder name="ErrorCode" return-type="Collection">
+	        <finder-column name="errorCode" />
+	    </finder>
+	
+	    <finder name="Step" return-type="Collection">
+	        <finder-column name="step" />
+	    </finder>
+	
+	    <finder name="CorrelationIdStartTimeMs" return-type="Collection">
+	        <finder-column name="correlationId" />
+	        <finder-column name="startTimeMs" comparator=">=" />
+	    </finder>
+	
+	    <finder name="CategoryStatusStartTimeMs" return-type="Collection">
+	        <finder-column name="category" />
+	        <finder-column name="status" />
+	        <finder-column name="startTimeMs" comparator=">=" />
+	    </finder>
+	
+	    <!-- NEW: fast DB dedupe finder -->
+	    <finder name="CompanyCategoryAlertFingerprintStartTimeMs" return-type="Collection">
+	        <finder-column name="companyId" />
+	        <finder-column name="category" />
+	        <finder-column name="alertFingerprint" />
+	        <finder-column name="startTimeMs" comparator=">=" />
+	    </finder>
+	
+	</entity>
+
+
+	<entity name="CourseSchedule" table="ntuc_cschedule" local-service="true" remote-service="false" uuid="true">
+	    <column name="courseScheduleId" type="long" primary="true" />
+	    <column name="groupId" type="long" />
+	    <column name="companyId" type="long" />
+	    <column name="createDate" type="Date" />
+	    <column name="modifiedDate" type="Date" />
+
+	    <!-- Unique -->
+	    <column name="courseCode" type="String" />
+
+	    <!-- Snapshot of latest schedule -->
+	    <column name="intakeNumber" type="String" />
+	    <column name="startDate" type="Date" />
+	    <column name="endDate" type="Date" />
+
+	    <column name="durationHours" type="int" />
+	    <column name="durationMinutes" type="int" />
+
+	    <column name="availability" type="int" />
+	    <column name="venue" type="String" />
+	    <column name="description" type="String" />
+	    <column name="availablePax" type="String" />
+	    <column name="availableWaitlist" type="String" />
+	    <column name="lxpBuyUrl" type="String" />
+	    <column name="lxpRoiUrl" type="String" />
+	    <column name="importantNote" type="String" />
+	    <column name="scheduleDownloadUrl" type="String" />
+
+	    <column name="errorCode" type="String" />
+	    <column name="errorMessage" type="String" />
+
+	    <column name="rawJson" type="String" />
+
+	    <column name="modifiedBy" type="long" />
+
+	    <finder name="CourseCode" return-type="CourseSchedule">
+	        <finder-column name="courseCode" />
+	    </finder>
+	</entity>
+</service-builder>

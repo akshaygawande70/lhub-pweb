@@ -1,0 +1,140 @@
+// .has-edit-mode-menu {
+//  .back_to_top {
+//   right: 60px;
+//  }
+//  .CX-utama {
+//   margin-top: 64px;
+//   .box-utama {
+//    .box-content-utama {
+//     margin-left: 0px !important;
+//    }
+//    .box-sidenav {
+//     width: 312px;
+//     @include prefix(
+//      (
+//       transform: translateX(-100%),
+//      ),
+//      webkit moz ms o
+//     );
+//     .CX-navigation {
+//      .toggle-side-left {
+//       display: none;
+//      }
+//     }
+
+//     &.open {
+//      @include prefix(
+//       (
+//        transform: translateX(0),
+//       ),
+//       webkit moz ms o
+//      );
+//     }
+//     z-index: 999;
+//     .CX-user-profile {
+//      max-width: 100%;
+//      padding: 20px 40px 0;
+
+//      .box-user-profile {
+//       .name {
+//        h4 {
+//         font-size: 18px;
+//        }
+//        a {
+//         font-size: 15px;
+//        }
+//       }
+//      }
+//     }
+//     .CX-navigation {
+//      .box-navigation {
+//       .box-list-navigation {
+//        .box-nav-menu {
+//         margin-bottom: 10px;
+//         .nav-menu {
+//          li {
+//           a {
+//            max-width: 100%;
+//            padding: 10px 40px;
+//            font-size: 18px;
+
+//            .ico {
+//             svg {
+//              width: 24px;
+//             }
+//            }
+//           }
+//          }
+//         }
+//         .title-nav {
+//          max-width: 100%;
+//          padding: 0 40px 5px;
+//          font-size: 15px;
+//         }
+//        }
+//       }
+//      }
+//     }
+//    }
+//   }
+//  }
+//  &.nav-open .CX-header {
+//   z-index: 3 !important;
+//  }
+//  .CX-header {
+//   padding: 20px 0;
+//   .container-fluid {
+//    padding-left: 15px;
+//    padding-right: 15px;
+//   }
+
+//   .box-header {
+//    .box-logo {
+//     display: none;
+//    }
+//    .box-burger-menu.hide {
+//     display: block !important;
+//     margin-left: 30px;
+//    }
+//   }
+//  }
+//  .my-polis {
+//   .box-polis-list {
+//    pointer-events: none;
+//    .slick-track {
+//     width: auto !important;
+//     .box-polis-item-outer {
+//      display: none;
+//      &:nth-child(1),
+//      &:nth-child(2),
+//      &:nth-child(3) {
+//       display: block;
+//      }
+//     }
+//    }
+//   }
+//   .box-nav-polis {
+//    display: none !important;
+//   }
+//  }
+
+//  .mode-edit-section{
+//     overflow-x: scroll;
+//     overflow-y: hidden;
+//     height: 400px;
+//     width: 100%;
+    
+// }
+// }
+.has-edit-mode-menu {
+     .mode-edit-section{
+    overflow-x: scroll;
+    overflow-y: hidden;
+    height: 400px;
+    width: 100%;
+    }
+}
+.modal-full-screen{
+    height: 84vh;
+    position: absolute !important;
+}

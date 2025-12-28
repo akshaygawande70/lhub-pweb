@@ -1,0 +1,271 @@
+package web.ntuc.login.portlet;
+
+import com.liferay.petra.string.StringBundler;
+import com.liferay.portal.kernel.exception.CompanyMaxUsersException;
+import com.liferay.portal.kernel.exception.CookieNotSupportedException;
+import com.liferay.portal.kernel.exception.NoSuchUserException;
+import com.liferay.portal.kernel.exception.PasswordExpiredException;
+import com.liferay.portal.kernel.exception.UserEmailAddressException;
+import com.liferay.portal.kernel.exception.UserIdException;
+import com.liferay.portal.kernel.exception.UserLockoutException;
+import com.liferay.portal.kernel.exception.UserPasswordException;
+import com.liferay.portal.kernel.exception.UserScreenNameException;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.model.Role;
+import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.portlet.LiferayPortletRequest;
+import com.liferay.portal.kernel.portlet.LiferayPortletResponse;
+import com.liferay.portal.kernel.portlet.PortletPreferencesFactoryUtil;
+import com.liferay.portal.kernel.portlet.PortletURLFactoryUtil;
+import com.liferay.portal.kernel.portlet.bridges.mvc.BaseMVCActionCommand;
+import com.liferay.portal.kernel.portlet.bridges.mvc.MVCActionCommand;
+import com.liferay.portal.kernel.security.auth.AuthException;
+import com.liferay.portal.kernel.security.auth.session.AuthenticatedSessionManager;
+import com.liferay.portal.kernel.service.UserLocalServiceUtil;
+import com.liferay.portal.kernel.servlet.SessionErrors;
+import com.liferay.portal.kernel.theme.ThemeDisplay;
+import com.liferay.portal.kernel.util.Http;
+import com.liferay.portal.kernel.util.ParamUtil;
+import com.liferay.portal.kernel.util.Portal;
+import com.liferay.portal.kernel.util.URLCodec;
+import com.liferay.portal.kernel.util.Validator;
+import com.liferay.portal.kernel.util.WebKeys;
+import com.liferay.portal.util.PropsValues;
+
+import java.util.List;
+
+import javax.portlet.ActionRequest;
+import javax.portlet.ActionResponse;
+import javax.portlet.PortletPreferences;
+import javax.portlet.PortletRequest;
+import javax.portlet.PortletURL;
+import javax.portlet.WindowState;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+
+import web.ntuc.login.constants.LoginPortletKeys;
+
+/**
+ * @author fandifadillah
+ */
+@Component(immediate = true, property = { "javax.portlet.name=" + LoginPortletKeys.FAST_LOGIN,
+		"javax.portlet.name=" + LoginPortletKeys.LOGIN, "mvc.command.name=/login/login",
+		"com.liferay.portlet.action-url-redirect=true",
+		"service.ranking:Integer=7000" }, service = MVCActionCommand.class)
+public class LoginPortlet extends BaseMVCActionCommand {
+
+	private static String loginParam = "login";
+
+	@Override
+	protected void doProcessAction(ActionRequest actionRequest, ActionResponse actionResponse) throws Exception {
+		ThemeDisplay themeDisplay = (ThemeDisplay) actionRequest.getAttribute(WebKeys.THEME_DISPLAY);
+
+		if (PropsValues.AUTH_LOGIN_DISABLED) {
+			actionResponse.sendRedirect(themeDisplay.getPathMain() + PropsValues.AUTH_LOGIN_DISABLED_PATH);
+
+			return;
+		}
+
+		try {
+			login(themeDisplay, actionRequest, actionResponse);
+
+			boolean doActionAfterLogin = ParamUtil.getBoolean(actionRequest, "doActionAfterLogin");
+
+			if (doActionAfterLogin) {
+				LiferayPortletResponse liferayPortletResponse = portal.getLiferayPortletResponse(actionResponse);
+
+				PortletURL renderURL = liferayPortletResponse.createRenderURL();
+
+				renderURL.setParameter("mvcRenderCommandName", "/login/login_redirect");
+
+				actionRequest.setAttribute(WebKeys.REDIRECT, renderURL.toString());
+			}
+		} catch (Exception exception) {
+			if (exception instanceof AuthException) {
+				Throwable throwable = exception.getCause();
+
+				if (throwable instanceof PasswordExpiredException || throwable instanceof UserLockoutException) {
+
+					SessionErrors.add(actionRequest, throwable.getClass(), throwable);
+				} else {
+					if (_log.isInfoEnabled()) {
+						_log.info("Authentication failed");
+					}
+
+					SessionErrors.add(actionRequest, exception.getClass());
+				}
+			} else if (exception instanceof CompanyMaxUsersException || exception instanceof CookieNotSupportedException
+					|| exception instanceof NoSuchUserException || exception instanceof PasswordExpiredException
+					|| exception instanceof UserEmailAddressException || exception instanceof UserIdException
+					|| exception instanceof UserLockoutException || exception instanceof UserPasswordException
+					|| exception instanceof UserScreenNameException) {
+
+				SessionErrors.add(actionRequest, exception.getClass(), exception);
+			} else {
+				_log.error(exception, exception);
+
+				portal.sendError(exception, actionRequest, actionResponse);
+
+				return;
+			}
+
+			postProcessAuthFailure(actionRequest, actionResponse);
+
+			hideDefaultErrorMessage(actionRequest);
+		}
+	}
+
+	protected String getCompleteRedirectURL(HttpServletRequest httpServletRequest, String redirect) {
+
+		HttpSession session = httpServletRequest.getSession();
+
+		Boolean httpsInitial = (Boolean) session.getAttribute(WebKeys.HTTPS_INITIAL);
+
+		String portalURL = null;
+
+		if (PropsValues.COMPANY_SECURITY_AUTH_REQUIRES_HTTPS && !PropsValues.SESSION_ENABLE_PHISHING_PROTECTION
+				&& (httpsInitial != null) && !httpsInitial.booleanValue()) {
+
+			portalURL = portal.getPortalURL(httpServletRequest, false);
+		} else {
+			portalURL = portal.getPortalURL(httpServletRequest);
+		}
+
+		return portalURL.concat(redirect);
+	}
+
+	protected void login(ThemeDisplay themeDisplay, ActionRequest actionRequest, ActionResponse actionResponse)
+			throws Exception {
+
+		HttpServletRequest httpServletRequest = portal
+				.getOriginalServletRequest(portal.getHttpServletRequest(actionRequest));
+
+		if (!themeDisplay.isSignedIn()) {
+			HttpServletResponse httpServletResponse = portal.getHttpServletResponse(actionResponse);
+
+			String login = ParamUtil.getString(actionRequest, loginParam);
+			String password = actionRequest.getParameter("password");
+			boolean rememberMe = ParamUtil.getBoolean(actionRequest, "rememberMe");
+
+			PortletPreferences portletPreferences = PortletPreferencesFactoryUtil
+					.getStrictPortletSetup(themeDisplay.getLayout(), portal.getPortletId(actionRequest));
+
+			String authType = portletPreferences.getValue("authType", null);
+
+			authenticatedSessionManager.login(httpServletRequest, httpServletResponse, login, password, rememberMe,
+					authType);
+
+			long loggedUserId = authenticatedSessionManager.getAuthenticatedUserId(httpServletRequest, login, password,
+					authType);
+//			_log.info("loggedUserId = "+loggedUserId);
+			User loggedUser = UserLocalServiceUtil.getUser(loggedUserId);
+			List<Role> roles = loggedUser.getRoles();
+			if (roles.size() == 1) {
+				actionRequest.setAttribute(WebKeys.REDIRECT, "/warning");
+			}
+		}
+
+		String redirect = ParamUtil.getString(actionRequest, "redirect");
+//		_log.info("redirect = "+redirect);
+		String mainPath = themeDisplay.getPathMain();
+
+		if (PropsValues.PORTAL_JAAS_ENABLE) {
+//			_log.info("jass_enable = "+PropsValues.PORTAL_JAAS_ENABLE);
+			if (Validator.isNotNull(redirect)) {
+				redirect = StringBundler.concat(mainPath, "/portal/protected?redirect=", URLCodec.encodeURL(redirect));
+			} else {
+				redirect = mainPath.concat("/portal/protected");
+			}
+
+			HttpServletResponse httpServletResponse = portal.getHttpServletResponse(actionResponse);
+
+			httpServletResponse.sendRedirect(redirect);
+
+			return;
+		}
+
+		if (Validator.isNotNull(redirect)) {
+//			_log.info("!themeDisplay.isSignedIn() = "+!themeDisplay.isSignedIn());
+			/*if (!themeDisplay.isSignedIn()) {
+				_log.info("path = "+http.addParameter(portal.getPathMain() + "/portal/login", "redirect", redirect));
+				actionRequest.setAttribute(WebKeys.REDIRECT,
+						http.addParameter(portal.getPathMain() + "/portal/login", "redirect", redirect));
+
+				return;
+			}*/
+
+			redirect = portal.escapeRedirect(redirect);
+
+			if (Validator.isNotNull(redirect) && !redirect.startsWith(Http.HTTP)) {
+
+				redirect = getCompleteRedirectURL(httpServletRequest, redirect);
+			}
+		}
+		
+//		_log.info("redirect = "+redirect);
+//		_log.info("jass = "+PropsValues.PORTAL_JAAS_ENABLE);
+		
+		if (Validator.isNotNull(redirect)) {
+			actionResponse.sendRedirect(redirect);
+		} else {
+			boolean doActionAfterLogin = ParamUtil.getBoolean(actionRequest, "doActionAfterLogin");
+//			_log.info("doafterlogin = "+doActionAfterLogin);
+			if (doActionAfterLogin) {
+				return;
+			}
+//			_log.info("mainpath = "+mainPath);
+			actionResponse.sendRedirect(mainPath);
+		}
+	}
+
+	protected void postProcessAuthFailure(ActionRequest actionRequest, ActionResponse actionResponse) throws Exception {
+
+		LiferayPortletRequest liferayPortletRequest = portal.getLiferayPortletRequest(actionRequest);
+
+		String portletName = liferayPortletRequest.getPortletName();
+
+		Layout layout = (Layout) actionRequest.getAttribute(WebKeys.LAYOUT);
+
+		PortletURL portletURL = PortletURLFactoryUtil.create(actionRequest, liferayPortletRequest.getPortlet(), layout,
+				PortletRequest.RENDER_PHASE);
+
+		portletURL.setParameter("saveLastPath", Boolean.FALSE.toString());
+
+		String redirect = ParamUtil.getString(actionRequest, "redirect");
+
+		if (Validator.isNotNull(redirect)) {
+			portletURL.setParameter("redirect", redirect);
+		}
+
+		String login = ParamUtil.getString(actionRequest, loginParam);
+
+		if (Validator.isNotNull(login)) {
+			SessionErrors.add(actionRequest, loginParam, login);
+		}
+
+		if (portletName.equals(LoginPortletKeys.LOGIN)) {
+			portletURL.setWindowState(WindowState.NORMAL);
+		} else {
+			portletURL.setWindowState(actionRequest.getWindowState());
+		}
+
+		actionResponse.sendRedirect(portletURL.toString());
+	}
+
+	private static final Log _log = LogFactoryUtil.getLog(LoginPortlet.class);
+
+	@Reference
+	private AuthenticatedSessionManager authenticatedSessionManager;
+
+	@Reference
+	private Http http;
+
+	@Reference
+	private Portal portal;
+}

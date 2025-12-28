@@ -1,0 +1,151 @@
+.login-container {
+    margin: auto;
+    margin-top: 150px;
+    margin-bottom: 100px;
+    width: 30%;
+    border: 2px solid #0097ce;
+    padding: 10px;
+    border-radius: 0px 0px 0px 40px;
+    padding: 20px;
+    transition: .5s;
+
+    .btn-primary {
+        width: 100%;
+        background-color: #0097ce;
+    }
+
+    // &:hover {
+    //     background-color: rgba(16, 41, 53, .6);
+
+    //     label {
+    //         color: #fff;
+    //     }
+
+    //     a {
+    //         color: #fff;
+    //     }
+
+    //     .btn-primary {
+    //         background-color: #0097ce;
+
+    //     }
+    // }
+}
+
+
+
+.login-ntuc {
+    width: 900px;
+    margin: auto auto;
+    margin-top: 5rem;
+    margin-bottom: 5rem;
+
+    @media (max-width:769px) {
+        width: auto;
+    }
+
+    .box-login {
+        .title-login {
+            font-size: 1.5rem;
+            font-weight: 550;
+            margin-bottom: 2rem;
+        }
+
+        .small {
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+            font-size: 12px;
+        }
+
+        .btn-blue {
+            display: block;
+            text-align: center;
+            margin-right: 0px;
+        }
+
+        .forgot {
+            margin-top: 1rem;
+        }
+
+        .field_icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+    }
+
+    .btn-blue {
+        background-color: #fff;
+        padding: 15px 30px;
+        margin-right: 20px;
+        border: 1px solid #0097ce;
+        background-color: #0097ce;
+        display: inline-block;
+        border-radius: 8px;
+        color: #fff !important;
+        font-weight: 600;
+        transition: 1s;
+        width: 100%;
+
+        &:hover {
+            background: #0097ce;
+            color: #fff !important;
+        }
+    }
+}
+
+
+#portlet_new-password{
+    width: 900px;
+	margin: auto auto;
+	margin-top: 5rem;
+	margin-bottom: 5rem;
+
+	@media (max-width:769px) {
+		width: auto;
+	}
+
+    input{
+        background-color: #fff;
+    }
+    .sheet{
+        border: 2px solid #0097ce;
+        width: 500px !important;
+         border-radius: 0px 0px 0px 40px;
+        @media (max-width:769px) {
+		width: auto;
+	}
+        .sheet-header{
+margin-bottom: 1rem;}
+        .sheet-title{
+            margin-bottom: 0rem;
+        }
+    }
+    .btn-primary {
+        width: 100%;
+        background-color: #0097ce;
+        border-color: #0097ce;
+        margin-bottom: 20px;
+        font-size:1rem;
+        transition: 1s;
+        &:hover{
+            opacity: .6;
+        }
+        &:before{
+            background-color: #0097ce;
+            
+        }
+    }
+    .float-right{
+        display: none;
+    }
+}
+
+#portlet_terms-of-use {
+    margin-top: 15rem;
+    margin-bottom: 5rem;
+}
+#portlet_password-reminder{
+    margin-top: 15rem;
+    margin-bottom: 5rem;
+}

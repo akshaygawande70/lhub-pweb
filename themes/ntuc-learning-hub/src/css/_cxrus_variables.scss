@@ -1,0 +1,209 @@
+// font global
+// $font_bold: "Publico-Bold";
+// $font_semibold: "SourceSans-Semibold";
+$font_reguler: "OpenSans-Reguler";
+$font_primary: "OpenSans";
+
+$font_robo_reguler: "Roboto";
+$font_robo_light: "Roboto-Light";
+$font_robo_bold: "Roboto-Bold";
+$font_robo_medium: "Roboto-Medium";
+
+
+// $font_monts_regular: "Montserrat-Regular";
+// $font_monts_thin: "Montserrat-Thin";
+
+$font_awesome: "Font Awesome\ 5 Pro";
+$font_brands: "Font Awesome\ 5 Brands";
+
+//color
+$c_black: #000000;
+$c_grey: #dddddd;
+$c_lightgrey: #f5f5f5;
+$c_white: #ffffff;
+$c_blue: #00008F;
+$c_primary: #F07662;
+$c_title: #333333;
+$c_primarydark: #C57265;
+$c_toplink: #5D5D5D;
+
+//Animations
+$ease_transition: all 0.15s ease-in-out;
+$class-delay: delayp;
+
+/*
+ * Theme definitions
+ */
+
+$themes: (
+  default: (
+    primaryColor: #F07662,
+    secondaryColor: #494DF4,
+  ),
+  secondary: (
+    primaryColor: #3f4e8c,
+    secondaryColor: #494DF4,
+  ),
+);
+
+@mixin themify($themes) {
+  @each $theme, $map in $themes {
+    .theme-#{$theme} & {
+      $theme-map: () !global;
+
+      @each $key, $submap in $map {
+        $value: map-get(map-get($themes, $theme), "#{$key}");
+        $theme-map: map-merge(
+          $theme-map,
+          (
+            $key: $value,
+          )
+        ) !global;
+      }
+
+      @content;
+      $theme-map: null !global;
+    }
+  }
+}
+
+@function themed($key) {
+  @return map-get($theme-map, $key);
+}
+
+$break-small: 320px;
+$break-semimedium: 768px;
+$break-medium: 992px;
+$break-large: 1024px;
+$break-largedekstop: 1366px;
+
+@mixin responsive($media) {
+  @if $media==mobile {
+    @media only screen and (max-width: $break-small) {
+      @content;
+    }
+  } @else if $media==largemobile {
+    @media only screen and (min-width: $break-small + 1) and (max-width: $break-semimedium - 1) {
+      @content;
+    }
+  } @else if $media==tablet {
+    @media only screen and (min-width: $break-semimedium) and (max-width: $break-large) {
+      @content;
+    }
+  } @else if $media==dekstop {
+    @media only screen and (min-width: $break-large) and (max-width: $break-largedekstop) {
+      @content;
+    }
+  } @else if $media==largedekstop {
+    @media only screen and (min-width: $break-largedekstop) {
+      @content;
+    }
+  }
+}
+
+//limit text overflow row
+@mixin limit_text_row($number) {
+  display: -webkit-box;
+  -webkit-line-clamp: $number;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+//prefix @include prefix((border-radius: 3px, transform: none), moz webkit ms);
+@mixin prefix($declarations, $prefixes: ()) {
+  @each $property, $value in $declarations {
+    @each $prefix in $prefixes {
+      #{'-' + $prefix + '-' + $property}: $value;
+    }
+
+    // Output standard non-prefixed declaration
+    #{$property}: $value;
+  }
+}
+
+//transition
+@mixin transition($transition...) {
+  -moz-transition: $transition;
+  -o-transition: $transition;
+  -webkit-transition: $transition;
+  transition: $transition;
+}
+
+@mixin transition-property($property...) {
+  -moz-transition-property: $property;
+  -o-transition-property: $property;
+  -webkit-transition-property: $property;
+  transition-property: $property;
+}
+
+@mixin transition-duration($duration...) {
+  -moz-transition-property: $duration;
+  -o-transition-property: $duration;
+  -webkit-transition-property: $duration;
+  transition-property: $duration;
+}
+
+@mixin transition-timing-function($timing...) {
+  -moz-transition-timing-function: $timing;
+  -o-transition-timing-function: $timing;
+  -webkit-transition-timing-function: $timing;
+  transition-timing-function: $timing;
+}
+
+@mixin transition-delay($delay...) {
+  -moz-transition-delay: $delay;
+  -o-transition-delay: $delay;
+  -webkit-transition-delay: $delay;
+  transition-delay: $delay;
+}
+
+//placeholder
+@mixin placeholder {
+  $placeholders: ":-webkit-input" ":-moz" "-moz" "-ms-input";
+
+  @each $placeholder in $placeholders {
+    &:#{$placeholder}-placeholder {
+      @content;
+    }
+  }
+}
+
+//keyframe
+@mixin keyframes($name) {
+  @-webkit-keyframes #{$name} {
+    @content;
+  }
+
+  @-moz-keyframes #{$name} {
+    @content;
+  }
+
+  @-ms-keyframes #{$name} {
+    @content;
+  }
+
+  @keyframes #{$name} {
+    @content;
+  }
+}
+
+@mixin animation($animation) {
+  -webkit-animation: #{$animation};
+  -moz-animation: #{$animation};
+  -ms-animation: #{$animation};
+  animation: #{$animation};
+}
+
+.centered {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+
+  @include prefix(
+    (
+      transform: translate(-50%, -50%),
+    ),
+    webkit moz ms o
+  );
+}

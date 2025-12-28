@@ -1,0 +1,11 @@
+<%-- <%@ include file="../init.jsp"%>
+<%	
+	DateFormat dateFormat = new SimpleDateFormat("dd-MMM-yyyy hh:mm:ss");  
+	String strDate = dateFormat.format(seoBulkUpload.getCreateDate());  
+%>
+	<liferay-ui:search-container-column-text name="No." value="<%= String.valueOf(seoBulkUpload.getNtucBulkUploadId()) %>"/>
+	<liferay-ui:search-container-column-text name="File Name" value="<%= seoBulkUpload.getFileName()%>"/>
+	<liferay-ui:search-container-column-text name="Upload Date" value="<%= strDate%>"/>
+	<liferay-ui:search-container-column-text name="Uploaded by User" value="<%= seoBulkUpload.getUserName()%>"/>
+	Some Action Button Like For Editing or View Or Else...
+	<liferay-ui:search-container-column-jsp path="/seoBulkUpload/entry_action.jsp"/> --%>

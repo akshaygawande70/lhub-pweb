@@ -1,0 +1,11 @@
+Bundle-Name: ntuc-dt5-notification-portlet
+Bundle-SymbolicName: ntuc.dt5.notification.portlet
+Bundle-Version: 1.0.0
+Export-Package: com.ntuc.notification.portlet.constants
+
+# Required: make this bundle a WAB so HTTP Whiteboard servlets can be mounted
+Web-ContextPath: /ntuc-dt5-notification-portlet
+
+# Include web resources (JSP/CSS/JS) from src/main/resources/META-INF/resources
+-includeresource: \
+    META-INF/resources=src/main/resources/META-INF/resources

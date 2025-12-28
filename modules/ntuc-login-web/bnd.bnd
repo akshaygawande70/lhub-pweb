@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-login-web
+Bundle-SymbolicName: web.ntuc.login
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.login.constants

@@ -1,0 +1,14 @@
+.portlet-borderless .portlet-content {
+	padding: $portlet-borderless-padding;
+}
+
+.portlet-decorate .portlet-content {
+	background: transparent;
+	border: 0px !important;
+	padding: 0px !important;
+	word-wrap: break-word;
+}
+
+.portlet-barebone .portlet-content {
+	padding: 0;
+}

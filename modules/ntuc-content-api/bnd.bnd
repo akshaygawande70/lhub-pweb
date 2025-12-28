@@ -1,0 +1,5 @@
+Bundle-Name: ntuc-content-api
+Bundle-SymbolicName: api.ntuc.nlh.content
+Bundle-Version: 1.0.0
+Export-Package: api.ntuc.nlh.content*
+Import-Package: *; version="0";resolution:="optional"

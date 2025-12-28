@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resources>
+    <sql>
+        <indexes>
+
+            <!-- Ensure ONLY ONE schedule row per courseCode -->
+            <index name="IX_Unique_CourseCode" unique="true">
+                <index-column name="courseCode" />
+            </index>
+
+            <!-- Optional but recommended: faster sorting/filtering -->
+            <index name="IX_CourseCode_StartDate" unique="false">
+                <index-column name="courseCode" />
+                <index-column name="startDate" />
+            </index>
+
+        </indexes>
+    </sql>
+</resources>

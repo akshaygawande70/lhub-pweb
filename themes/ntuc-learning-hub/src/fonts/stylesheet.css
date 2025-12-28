@@ -1,0 +1,27 @@
+@font-face {
+  font-family: "SourceSans-Reguler";
+  src: url("Sourcesans/SourceSansPro-Regular.otf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "SourceSans-Semibold";
+  src: url("Sourcesans/SourceSansPro-Semibold.otf");
+  font-display: swap;
+  font-weight: normal;
+}
+
+@font-face {
+  font-family: "Publico-Bold";
+  src: url("Publico/Publico-Text-Web-Bold.otf");
+  font-display: swap;
+  font-weight: normal;
+}
+@font-face {
+  font-family: "Roboto";
+  src: url("Roboto/Roboto-Regular.ttf");
+  font-display: swap;
+  font-weight: normal;
+}
+
+

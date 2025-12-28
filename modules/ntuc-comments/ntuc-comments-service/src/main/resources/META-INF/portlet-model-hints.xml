@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+
+<model-hints>
+	<model name="svc.ntuc.nlh.comments.model.Comment">
+		<field name="uuid" type="String" />
+		<field name="commentId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="userId" type="long" />
+		<field name="userName" type="String" />
+		<field name="createDate" type="Date" />
+		<field name="modifiedDate" type="Date" />
+		<field name="commentText" type="String" />
+		<field name="commentName" type="String" />
+		<field name="commentEmail" type="String" />
+		<field name="commentOption" type="boolean" />
+		<field name="commentStatus" type="boolean" />
+	</model>
+</model-hints>

@@ -1,0 +1,15 @@
+create index IX_71EC8C1E on ntuc_course (courseCode[$COLUMN_LENGTH:75$], batchId[$COLUMN_LENGTH:75$], deleted, groupId);
+create index IX_2176ADAD on ntuc_course (courseCode[$COLUMN_LENGTH:75$], batchId[$COLUMN_LENGTH:75$], groupId);
+create index IX_4123F909 on ntuc_course (courseCode[$COLUMN_LENGTH:75$], deleted, groupId);
+create index IX_FB293C98 on ntuc_course (courseCode[$COLUMN_LENGTH:75$], startDate);
+create index IX_C33E04C2 on ntuc_course (courseTitle[$COLUMN_LENGTH:2000$], deleted, groupId);
+create index IX_C28544ED on ntuc_course (deleted, groupId);
+create index IX_A8E8221E on ntuc_course (deleted, popular, groupId);
+create index IX_95B412FC on ntuc_course (deleted, updated, groupId);
+create index IX_65BFD45E on ntuc_course (groupId, courseCode[$COLUMN_LENGTH:75$], batchId[$COLUMN_LENGTH:75$], deleted);
+create index IX_7372A22F on ntuc_course (groupId, courseCode[$COLUMN_LENGTH:75$], deleted);
+create index IX_39BDC53A on ntuc_course (groupId, courseTitle[$COLUMN_LENGTH:2000$], deleted);
+create index IX_E970E95E on ntuc_course (groupId, deleted, popular);
+create index IX_9A2EE6C0 on ntuc_course (groupId, deleted, updated);
+create index IX_484E7520 on ntuc_course (uuid_[$COLUMN_LENGTH:75$], companyId);
+create unique index IX_8731C3A2 on ntuc_course (uuid_[$COLUMN_LENGTH:75$], groupId);

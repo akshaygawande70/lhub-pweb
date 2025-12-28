@@ -1,0 +1,4 @@
+Bundle-Name: eshop-reports-web
+Bundle-SymbolicName: web.ntuc.eshop.reports
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.reports.constants

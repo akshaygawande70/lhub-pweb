@@ -1,0 +1,5 @@
+Bundle-Name: eshop-stripe-payment-web
+Bundle-SymbolicName: web.ntuc.eshop.stripe.payment
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.stripe.payment.constants
+Web-ContextPath: /commerce-payment-method-stripe

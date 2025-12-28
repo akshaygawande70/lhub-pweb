@@ -1,0 +1,13 @@
+Bundle-Name: ntuc-dt5-notification-service-api
+Bundle-SymbolicName: com.ntuc.notification.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	com.ntuc.notification.exception,\
+	com.ntuc.notification.model,\
+	com.ntuc.notification.service,\
+	com.ntuc.notification.service.persistence,\
+	com.ntuc.notification.constants,\
+	com.ntuc.notification.util,\
+	com.ntuc.notification.audit.util
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../ntuc-dt5-notification-service-service/service.xml

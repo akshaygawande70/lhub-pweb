@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-course-admin-web
+Bundle-SymbolicName: web.ntuc.nlh.course.admin
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.course.admin.constants

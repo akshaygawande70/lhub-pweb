@@ -1,0 +1,4 @@
+Bundle-Name: eshop-discount-hook
+Bundle-SymbolicName: web.ntuc.eshop.discount
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.discount.constants

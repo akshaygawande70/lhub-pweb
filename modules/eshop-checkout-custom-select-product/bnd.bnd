@@ -1,0 +1,5 @@
+Bundle-Name: eshop-checkout-custom-select-product
+Bundle-SymbolicName: web.ntuc.eshop.checkout.custom.select.product
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.checkout.custom.select.product.constants
+Web-ContextPath: /custom-select-product

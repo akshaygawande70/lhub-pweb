@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+
+<model-hints>
+	<model name="svc.ntuc.nlh.course.admin.model.Course">
+		<field name="uuid" type="String" />
+		<field name="courseId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="userId" type="long" />
+		<field name="userName" type="String" />
+		<field name="createDate" type="Date" />
+		<field name="modifiedDate" type="Date" />
+		<field name="endDate" type="Date" />
+		<field name="venue" type="String">
+			<hint name="max-length">2000</hint>
+		</field>
+		<field name="allowOnlinePayment" type="boolean" />
+		<field name="courseTitle" type="String">
+			<hint name="max-length">2000</hint>
+		</field>
+		<field name="allowWebRegistration" type="boolean" />
+		<field name="description" type="String">
+			<hint name="max-length">5000</hint>
+		</field>
+		<field name="availability" type="int" />
+		<field name="batchId" type="String" />
+		<field name="webExpiry" type="Date" />
+		<field name="fundedCourseFlag" type="boolean" />
+		<field name="courseCode" type="String" />
+		<field name="courseDuration" type="Double" />
+		<field name="courseType" type="String" />
+		<field name="courseFee" type="Double" />
+		<field name="deleted" type="boolean" />
+		<field name="status" type="String" />
+		<field name="startDate" type="Date" />
+		<field name="updated" type="boolean" />
+		<field name="popular" type="boolean" />
+	</model>
+</model-hints>

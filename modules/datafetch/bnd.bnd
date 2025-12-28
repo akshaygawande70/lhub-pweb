@@ -1,0 +1,40 @@
+Bundle-Name: datafetch
+Bundle-SymbolicName: datafetch
+Bundle-Version: 1.0.0
+Include-Resource:\
+    @poi-4.1.2.jar,\
+    @poi-ooxml-4.1.2.jar,\
+    @poi-ooxml-schemas-4.1.2.jar,\
+    @commons-collections4-4.4.jar,\
+    @commons-compress-1.19.jar,\
+    @commons-lang3-3.9.jar,\
+    @xmlbeans-3.1.0.jar
+    
+ Import-Package: \
+    !com.sun.*,\
+    !junit*,\
+    !org.apache.avalon.framework.logger,\
+    !org.apache.crimson.jaxp,\
+    !org.apache.jcp.xml.dsig.internal.dom,\
+    !org.apache.log,\
+    !org.apache.xml.resolver*,\
+    !org.bouncycastle.*,\
+    !org.gjt.xpp,\
+    !org.junit*,\
+    !org.relaxng.datatype,\
+    !org.xmlpull.v1,\
+    !com.microsoft.schemas.office.*,\
+    !com.zaxxer.sparsebits,\
+    !org.apache.batik.*,\
+    !com.graphbuilder*,\
+    !org.etsi.uri.x01903.v14,\
+    !org.openxmlformats.schemas.officeDocument.x2006.*,\
+    !org.openxmlformats.schemas.schemaLibrary.x2006.main,\
+    !net.sf.saxon.*,\
+    !org.apache.commons.codec.binary,\
+    !org.apache.commons.codec.digest,\
+    !org.apache.commons.math3.*,\
+    !com.github.luben.*,\
+    !org.brotli.*,\
+    !org.tukaani.xz,\
+    *

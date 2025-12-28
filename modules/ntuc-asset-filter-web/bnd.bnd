@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-asset-filter-web
+Bundle-SymbolicName: web.ntuc.nlh.assetpublisher.portlet
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.assetpublisher.portlet.constants

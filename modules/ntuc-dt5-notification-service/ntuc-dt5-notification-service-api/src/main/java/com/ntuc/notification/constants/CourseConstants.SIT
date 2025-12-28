@@ -1,0 +1,41 @@
+package com.ntuc.notification.constants;
+
+public class CourseConstants {
+
+	/*
+	 * public static final String CLS_SERVICE_USER_EMAIL = "skskuser@example.com";
+	 * public static final long FOLDER_ID = 3145306; public static final String[]
+	 * COURSE_TYPES_TO_PROCESS = { "TMS" }; public static final long GROUP_ID =
+	 * 39367;
+	 * 
+	 * 
+	 * public static final String DDM_STRUCTURE_KEY = "98270"; public static final
+	 * String DDM_TEMPLATE_KEY = "98301";
+	 * 
+	 * 
+	 * public static final String TEMPLATE_NAME =
+	 * "Detail Courses Template - Akshay CLS Test1";
+	 * 
+	 * // Prevent instantiation private CourseConstants() { throw new
+	 * UnsupportedOperationException("This class cannot be instantiated"); }
+	 */
+	
+//	public static final String CLS_SERVICE_USER_EMAIL = "skskuser@example.com";
+	public static final String CLS_SERVICE_USER_EMAIL = "mythily@ntuclearninghub.com";
+	public static final long FOLDER_ID = 8757202;
+	public static final String[] COURSE_TYPES_TO_PROCESS = { "TMS" };
+	public static final long GROUP_ID = 39367;
+	public static final long COMPANY_ID = 20097;
+
+	/*
+	 * public static final String DDM_STRUCTURE_KEY = "98270"; public static final
+	 * String DDM_TEMPLATE_KEY = "98301";
+	 */
+	
+	public static final String TEMPLATE_NAME = "Course Template - CLS Batch Module Test";
+
+	// Prevent instantiation
+    private CourseConstants() {
+        throw new UnsupportedOperationException("This class cannot be instantiated");
+    }
+}

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!DOCTYPE look-and-feel PUBLIC "-//Liferay//DTD Look and Feel 7.3.0//EN" "http://www.liferay.com/dtd/liferay-look-and-feel_7_3_0.dtd">
+
+<look-and-feel>
+	<compatibility>
+		<version>7.3.0+</version>
+	</compatibility>
+	<theme id="ntuclearninghub-theme" name="NTUC LearningHub">
+		<template-extension>ftl</template-extension>
+		<control-panel-theme>true</control-panel-theme>
+		<settings>
+			<setting configurable="true" key="nav-transparent" type="checkbox" value="false" />
+			<setting configurable="true" key="nav-blog" type="checkbox" value="false" />
+			<setting configurable="true" key="hide-header" type="checkbox" value="false" />
+			<setting configurable="true" key="hide-footer" type="checkbox" value="false" />
+			<!-- <setting configurable="true" key="pswd-protect" type="checkbox" value="false" />
+			<setting configurable="true" key="pswd-text" type="text" value="ntuc" /> -->
+		</settings>
+		<portlet-decorator id="barebone" name="Barebone">
+			<portlet-decorator-css-class>portlet-barebone</portlet-decorator-css-class>
+		</portlet-decorator>
+		<portlet-decorator id="borderless" name="Borderless">
+			<portlet-decorator-css-class>portlet-borderless</portlet-decorator-css-class>
+		</portlet-decorator>
+		<portlet-decorator id="decorate" name="Decorate">
+			<default-portlet-decorator>true</default-portlet-decorator>
+			<portlet-decorator-css-class>portlet-decorate</portlet-decorator-css-class>
+		</portlet-decorator>
+	</theme>
+</look-and-feel>

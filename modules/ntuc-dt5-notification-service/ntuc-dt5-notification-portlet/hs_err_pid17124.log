@@ -1,0 +1,161 @@
+#
+# There is insufficient memory for the Java Runtime Environment to continue.
+# Native memory allocation (malloc) failed to allocate 1048576 bytes for AllocateHeap
+# Possible reasons:
+#   The system is out of physical RAM or swap space
+#   The process is running with CompressedOops enabled, and the Java Heap may be blocking the growth of the native heap
+# Possible solutions:
+#   Reduce memory load on the system
+#   Increase physical memory or swap space
+#   Check if swap backing store is full
+#   Decrease Java heap size (-Xmx/-Xms)
+#   Decrease number of Java threads
+#   Decrease Java thread stack sizes (-Xss)
+#   Set larger code cache with -XX:ReservedCodeCacheSize=
+#   JVM is running with Zero Based Compressed Oops mode in which the Java heap is
+#     placed in the first 32GB address space. The Java Heap base address is the
+#     maximum limit for the native heap growth. Please use -XX:HeapBaseMinAddress
+#     to set the Java Heap base and to place the Java Heap above 32GB virtual address.
+# This output file may be truncated or incomplete.
+#
+#  Out of Memory Error (memory/allocation.inline.hpp:61), pid=17124, tid=0x0000000000005038
+#
+# JRE version:  (8.0_202-b08) (build )
+# Java VM: Java HotSpot(TM) 64-Bit Server VM (25.202-b08 mixed mode windows-amd64 compressed oops)
+# Failed to write core dump. Minidumps are not enabled by default on client versions of Windows
+#
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x0000000002903800):  JavaThread "Unknown thread" [_thread_in_vm, id=20536, stack(0x0000000002800000,0x0000000002900000)]
+
+Stack: [0x0000000002800000,0x0000000002900000]
+[error occurred during error reporting (printing stack bounds), id 0xc0000005]
+
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+
+
+---------------  P R O C E S S  ---------------
+
+Java Threads: ( => current thread )
+
+Other Threads:
+
+=>0x0000000002903800 (exited) JavaThread "Unknown thread" [_thread_in_vm, id=20536, stack(0x0000000002800000,0x0000000002900000)]
+
+VM state:not at safepoint (normal execution)
+
+VM Mutex/Monitor currently owned by a thread: None
+
+heap address: 0x00000005c8600000, size: 8058 MB, Compressed Oops mode: Zero based, Oop shift amount: 3
+Narrow klass base: 0x0000000000000000, Narrow klass shift: 3
+Compressed class space size: 1073741824 Address: 0x00000007c0000000
+
+Heap:
+ PSYoungGen      total 150528K, used 2580K [0x0000000718200000, 0x0000000722a00000, 0x00000007c0000000)
+  eden space 129024K, 2% used [0x0000000718200000,0x00000007184851f8,0x0000000720000000)
+  from space 21504K, 0% used [0x0000000721500000,0x0000000721500000,0x0000000722a00000)
+  to   space 21504K, 0% used [0x0000000720000000,0x0000000720000000,0x0000000721500000)
+ ParOldGen       total 344064K, used 0K [0x00000005c8600000, 0x00000005dd600000, 0x0000000718200000)
+  object space 344064K, 0% used [0x00000005c8600000,0x00000005c8600000,0x00000005dd600000)
+ Metaspace       used 775K, capacity 4480K, committed 4480K, reserved 1056768K
+  class space    used 76K, capacity 384K, committed 384K, reserved 1048576K
+
+Card table byte_map: [0x0000000011dc0000,0x0000000012d80000] byte_map_base: 0x000000000ef7d000
+
+Marking Bits: (ParMarkBitMap*) 0x00000000528e5ce0
+ Begin Bits: [0x0000000014800000, 0x000000001c5e8000)
+ End Bits:   [0x000000001c5e8000, 0x00000000243d0000)
+
+Polling page: 0x0000000000fe0000
+
+CodeCache: size=245760Kb used=328Kb max_used=328Kb free=245431Kb
+ bounds [0x0000000002a00000, 0x0000000002c70000, 0x0000000011a00000]
+ total_blobs=58 nmethods=0 adapters=38
+ compilation: enabled
+
+Compilation events (0 events):
+No events
+
+GC Heap History (0 events):
+No events
+
+Deoptimization events (0 events):
+No events
+
+Classes redefined (0 events):
+No events
+
+Internal exceptions (0 events):
+No events
+
+Events (10 events):
+Event: 0.025 loading class java/lang/Short
+Event: 0.025 loading class java/lang/Short done
+Event: 0.025 loading class java/lang/Integer
+Event: 0.025 loading class java/lang/Integer done
+Event: 0.025 loading class java/lang/Long
+Event: 0.025 loading class java/lang/Long done
+Event: 0.026 loading class java/lang/NullPointerException
+Event: 0.026 loading class java/lang/NullPointerException done
+Event: 0.026 loading class java/lang/ArithmeticException
+Event: 0.026 loading class java/lang/ArithmeticException done
+
+
+Dynamic libraries:
+0x00007ff74b600000 - 0x00007ff74b637000 	C:\Program Files\Java\jdk1.8.0_202\bin\java.exe
+0x00007ffc174c0000 - 0x00007ffc17727000 	C:\WINDOWS\SYSTEM32\ntdll.dll
+0x00007ffc15aa0000 - 0x00007ffc15b69000 	C:\WINDOWS\System32\KERNEL32.DLL
+0x00007ffc148c0000 - 0x00007ffc14caf000 	C:\WINDOWS\System32\KERNELBASE.dll
+0x00007ffc16b00000 - 0x00007ffc16bb4000 	C:\WINDOWS\System32\ADVAPI32.dll
+0x00007ffc15830000 - 0x00007ffc158d9000 	C:\WINDOWS\System32\msvcrt.dll
+0x00007ffc16bc0000 - 0x00007ffc16c66000 	C:\WINDOWS\System32\sechost.dll
+0x00007ffc16ed0000 - 0x00007ffc16fe8000 	C:\WINDOWS\System32\RPCRT4.dll
+0x00007ffc17010000 - 0x00007ffc171d5000 	C:\WINDOWS\System32\USER32.dll
+0x00007ffc150b0000 - 0x00007ffc150d7000 	C:\WINDOWS\System32\win32u.dll
+0x00007ffc155e0000 - 0x00007ffc1560b000 	C:\WINDOWS\System32\GDI32.dll
+0x00007ffc14d80000 - 0x00007ffc14eac000 	C:\WINDOWS\System32\gdi32full.dll
+0x00007ffc14810000 - 0x00007ffc148b3000 	C:\WINDOWS\System32\msvcp_win.dll
+0x00007ffc146c0000 - 0x00007ffc1480b000 	C:\WINDOWS\System32\ucrtbase.dll
+0x00007ffbfa890000 - 0x00007ffbfab23000 	C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.26100.7309_none_3e05feeae336a044\COMCTL32.dll
+0x00007ffc15610000 - 0x00007ffc15641000 	C:\WINDOWS\System32\IMM32.DLL
+0x0000000052fc0000 - 0x0000000053092000 	C:\Program Files\Java\jdk1.8.0_202\jre\bin\msvcr100.dll
+0x00000000520c0000 - 0x0000000052965000 	C:\Program Files\Java\jdk1.8.0_202\jre\bin\server\jvm.dll
+0x00007ffc16d80000 - 0x00007ffc16d88000 	C:\WINDOWS\System32\PSAPI.DLL
+0x00007ffc0b500000 - 0x00007ffc0b535000 	C:\WINDOWS\SYSTEM32\WINMM.dll
+0x00007ffc00660000 - 0x00007ffc0066a000 	C:\WINDOWS\SYSTEM32\WSOCK32.dll
+0x00007ffbfb080000 - 0x00007ffbfb08b000 	C:\WINDOWS\SYSTEM32\VERSION.dll
+0x00007ffc159a0000 - 0x00007ffc15a14000 	C:\WINDOWS\System32\WS2_32.dll
+0x00007ffbf6280000 - 0x00007ffbf628f000 	C:\Program Files\Java\jdk1.8.0_202\jre\bin\verify.dll
+0x00007ffbcb2f0000 - 0x00007ffbcb319000 	C:\Program Files\Java\jdk1.8.0_202\jre\bin\java.dll
+0x00007ffbda130000 - 0x00007ffbda146000 	C:\Program Files\Java\jdk1.8.0_202\jre\bin\zip.dll
+
+VM Arguments:
+jvm_args: -Dsass.compiler.jni.clean.temp.dir=true -Dfile.encoding=UTF-8 -Duser.country=IN -Duser.language=en -Duser.variant 
+java_command: com.liferay.css.builder.CSSBuilder --append-css-import-timestamps=true --base-dir=D:/5_NSS_PROJECTS/90_NTUC/1_CLS_Integration/lhub-pweb-bitbucket/lhub-pweb/modules/ntuc-dt5-notification-service/ntuc-dt5-notification-portlet/build/tmp/copyCSS --dir-names=/ --excludes=**/_diffs/**,**/.sass-cache*/**,**/.sass_cache_*/**,**/_sass_cache_*/**,**/_styled/**,**/_unstyled/**,**/css/aui/**,**/css/clay/**,**/tmp/** --generate-source-map=false --import-paths=C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\com.liferay\com.liferay.frontend.css.common\5.0.8\3253dff36082e1de5f52c991014a56a270492729\com.liferay.frontend.css.common-5.0.8.jar --output-dir=.sass-cache/ --precision=9 --rtl-excluded-path-regexps=
+java_class_path (initial): C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\com.liferay\com.liferay.css.builder\3.0.2\35a3cc67db96c6eba16aa76c5327deb9cb03fda4\com.liferay.css.builder-3.0.2.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\com.liferay\com.liferay.sass.compiler.jni\2.0.9\b420698786a8ef03f28eb3c7894deec4a82a4cfe\com.liferay.sass.compiler.jni-2.0.9.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\com.liferay\com.liferay.sass.compiler.ruby\2.0.6\47198a15bf9aeb6597bbda3bb98f83b86a2caf5b\com.liferay.sass.compiler.ruby-2.0.6.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\org.codehaus.plexus\plexus-utils\3.0.15\519b3f1fc84d3387c61a8c8e6235daf89aea4168\plexus-utils-3.0.15.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\org.sonatype.plexus\plexus-build-api\0.0.7\e6ba5cd4bfd8de00235af936e7f63eb24ed436e6\plexus-build-api-0.0.7.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\com.liferay\com.liferay.sass.compiler.api\2.0.1\2b3816efa1f5c048f89b57dc7efc60b2747ce5eb\com.liferay.sass.compiler.api-2.0.1.jar;C:\Users\Akshay\.gradle\caches\modules-2\files-2.1\org.jruby\jruby-complete\9.2.7.0\308120bca38f617e7b275af8ce0cbd9f0be66218\jruby-complete-9.2.7.0.jar
+Launcher Type: SUN_STANDARD
+
+Environment Variables:
+JAVA_HOME=C:\Program Files\Java\jdk1.8.0_202\jre
+PATH=C:/Program Files/Java/jre1.8.0_202/bin/server;C:/Program Files/Java/jre1.8.0_202/bin;C:/Program Files/Java/jre1.8.0_202/lib/amd64;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files\ImageMagick-7.1.1-Q16;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\dotnet\;C:\Program Files (x86)\Common Files\MicroStrategy;C:\Program Files (x86)\MicroStrategy\Developer;C:\Program Files (x86)\MicroStrategy\Command Manager;C:\Program Files (x86)\MicroStrategy\Enterprise Manager;C:\Program Files (x86)\MicroStrategy\Integrity Manager;C:\Program Files (x86)\MicroStrategy\Integrity Manager\x64\AdobeSDK\Java\Binaries;C:\Program Files (x86)\Common Files\MicroStrategy\JRE\17.0.13.11\Win32\bin;C:\Program Files (x86)\Common Files\MicroStrategy\JRE\17.0.13.11\Win64\bin;C:\Program Files (x86)\Common Files\MicroStrategy\JRE\17.0.13.11\Win64\bin\server;C:\Program Files (x86)\Common Files\MicroStrategy\Help\English;C:\Program Files (x86)\Common Files\MicroStrategy\Repository\pgsql\bin;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\Java\jdk1.8.0_202\jre;;C:\Users\Akshay\.jpm\windows\bin;C:\Program Files\Amazon\AWSCLIV2\;C:\Program Files\Cloudflare\Cloudflare WARP\;C:\Program Files\MicroStrategy\Workstation\DataServices\17.0.16+8\64-bit\bin\server;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\Akshay\AppData\Local\Programs\Python\Python310\Scripts\;C:\Users\Akshay\AppData\Local\Programs\Python\Python310\;C:\Users\Akshay\AppData\Local\Microsoft\WindowsApps;C:\Users\Akshay\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\Akshay\AppData\Roaming\npm;C:\Users\Akshay\AppData\Local\GitHubDesktop\bin;C:\Program Files (x86)\LiferayWorkspacewithDevStudio\liferay-developer-studio;
+USERNAME=Akshay
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 170 Stepping 4, GenuineIntel
+
+
+
+---------------  S Y S T E M  ---------------
+
+OS: Windows 10.0 , 64 bit Build 26100 (10.0.26100.7309)
+
+CPU:total 22 (initial active 22) (11 cores per cpu, 2 threads per core) family 6 model 170 stepping 4, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, avx2, aes, clmul, erms, 3dnowpref, lzcnt, ht, tsc, tscinvbit, bmi1, bmi2, adx
+
+Memory: 4k page, physical 33000864k(1892888k free), swap 65922332k(4652k free)
+
+vm_info: Java HotSpot(TM) 64-Bit Server VM (25.202-b08) for windows-amd64 JRE (1.8.0_202-b08), built on Dec 15 2018 19:54:30 by "java_re" with MS VC++ 10.0 (VS2010)
+
+time: Mon Dec 22 18:13:56 2025
+timezone: India Standard Time
+elapsed time: 0 seconds (0d 0h 0m 0s)
+

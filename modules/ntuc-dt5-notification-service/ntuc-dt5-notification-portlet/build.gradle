@@ -1,0 +1,44 @@
+apply plugin: "java"
+apply plugin: "jacoco"
+
+dependencies {
+
+    // ------------------------------------------------------------------
+    // Module dependency (PORTLET -> API)  [NON-NEGOTIABLE]
+    // ------------------------------------------------------------------
+    compile project(
+        ":modules:ntuc-dt5-notification-service:ntuc-dt5-notification-service-api"
+    )
+
+    // Ensure test compilation can also see API DTOs/constants
+    testImplementation project(
+        ":modules:ntuc-dt5-notification-service:ntuc-dt5-notification-service-api"
+    )
+
+    // ------------------------------------------------------------------
+    // Liferay (compile-only)
+    // ------------------------------------------------------------------
+    compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+    
+    // match what works in -api
+    compileOnly "org.osgi:org.osgi.service.jaxrs"
+    compileOnly "javax.annotation:javax.annotation-api:1.3.2"
+    compileOnly "javax.ws.rs:javax.ws.rs-api:2.1.1"
+    compileOnly "org.slf4j:slf4j-api:1.7.30"
+
+    // ------------------------------------------------------------------
+    // Tests
+    // ------------------------------------------------------------------
+    testImplementation group: "junit", name: "junit", version: "4.13.2"
+    testImplementation group: "org.mockito", name: "mockito-core", version: "3.12.4"
+
+    // JSON writer tests
+    testImplementation group: "com.fasterxml.jackson.core", name: "jackson-databind", version: "2.13.5"
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled true
+        html.enabled true
+    }
+}

@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-media-filter-web
+Bundle-SymbolicName: web.ntuc.nlh.mediafilter
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.mediafilter.constants

@@ -1,0 +1,4 @@
+Bundle-Name: eshop-address-hook-web
+Bundle-SymbolicName: web.ntuc.eshop.address
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.address.constants

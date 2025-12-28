@@ -1,0 +1,10 @@
+Bundle-Name: ntuc-course-admin-api
+Bundle-SymbolicName: svc.ntuc.nlh.course.admin.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	svc.ntuc.nlh.course.admin.exception,\
+	svc.ntuc.nlh.course.admin.model,\
+	svc.ntuc.nlh.course.admin.service,\
+	svc.ntuc.nlh.course.admin.service.persistence
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../ntuc-course-admin-service/service.xml

@@ -1,0 +1,19 @@
+dependencies {
+	compile project(":modules:ntuc-comments:ntuc-comments-api")
+
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+}
+
+buildService {
+	apiDir = "../ntuc-comments-api/src/main/java"
+}
+
+group = "svc.ntuc.nlh.comments"
+
+tasks.withType(JavaCompile) {
+
+	// Generated classes using Jodd library are unable to be read when compiled against JDK 11
+
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+}

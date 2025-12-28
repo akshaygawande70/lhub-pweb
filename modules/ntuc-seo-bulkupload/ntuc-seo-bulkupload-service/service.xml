@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE service-builder PUBLIC "-//Liferay//DTD Service Builder 7.3.0//EN" "http://www.liferay.com/dtd/liferay-service-builder_7_3_0.dtd">
+
+<service-builder dependency-injector="ds" package-path="svc.ntuc.nlh.seo.bulkupload">
+	<namespace>ntuc_seo</namespace>
+	<entity local-service="true" name="NtucBulkUpload" remote-service="false" uuid="true">
+
+		<column name="ntucBulkUploadId" primary="true" type="long" />
+
+		<column name="groupId" type="long" />
+		<column name="companyId" type="long" />
+		<column name="userId" type="long" />
+		<column name="userName" type="String" />
+		<column name="createDate" type="Date" />
+		<column name="modifiedDate" type="Date" />
+
+		<column name="fileName" type="String" />
+		<column name="rowData" type="String" />
+
+		<order by="asc">
+			<order-column name="ntucBulkUploadId" />
+		</order>
+
+		<finder name="ntucBulkUploadId" return-type="NtucBulkUpload">
+			<finder-column name="ntucBulkUploadId" />
+		</finder>
+	</entity>
+</service-builder>

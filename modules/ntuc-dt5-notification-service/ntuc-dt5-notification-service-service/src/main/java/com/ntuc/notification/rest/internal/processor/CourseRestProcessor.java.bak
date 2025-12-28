@@ -1,0 +1,868 @@
+package com.ntuc.notification.rest.internal.processor;
+
+import com.liferay.counter.kernel.service.CounterLocalService;
+import com.liferay.petra.executor.PortalExecutorManager;
+import com.liferay.portal.kernel.log.Log;
+import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.security.auth.CompanyThreadLocal;
+import com.liferay.portal.kernel.security.auth.PrincipalThreadLocal;
+import com.liferay.portal.kernel.service.GroupLocalService;
+import com.liferay.portal.kernel.service.UserLocalService;
+import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.PortalUtil;
+import com.ntuc.notification.audit.api.AuditLogger;
+import com.ntuc.notification.audit.api.constants.AuditConstants;
+import com.ntuc.notification.audit.util.MdcUtil;
+import com.ntuc.notification.constants.ChangeFromConstants;
+import com.ntuc.notification.constants.NotificationType;
+import com.ntuc.notification.constants.ProcessingStatusConstants;
+import com.ntuc.notification.model.CourseEvent;
+import com.ntuc.notification.model.CourseEvent.Course;
+import com.ntuc.notification.model.CourseEventList;
+import com.ntuc.notification.model.CoursesDummy;
+import com.ntuc.notification.model.NtucSB;
+import com.ntuc.notification.model.ScheduleResponse;
+import com.ntuc.notification.model.SubscriptionsDummy;
+import com.ntuc.notification.onetime.OneTimeS3LoadService;
+import com.ntuc.notification.rest.internal.dto.CourseRestDtos;
+import com.ntuc.notification.service.ClsCourseFieldsProcessor;
+import com.ntuc.notification.service.NtucSBLocalService;
+import com.ntuc.notification.service.mapper.CourseEventDbMapper;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import javax.ws.rs.core.Response;
+
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+
+/**
+ * Still an OSGi component to wire services easily,
+ * but the important point is: the heavy logic is isolated here and can be unit-tested
+ * by instantiating this class directly and mocking dependencies (no JAX-RS / no whiteboard).
+ */
+@Component(service = CourseRestProcessor.class)
+public class CourseRestProcessor {
+
+    private static final Log _log = LogFactoryUtil.getLog(CourseRestProcessor.class);
+
+    // Configurable fallback; keep existing behavior.
+    private static final long FALLBACK_GROUP_ID = 0L;
+
+    @Reference private NtucSBLocalService _ntucSBLocalService;
+    @Reference private CounterLocalService _counterLocalService;
+    @Reference private ClsCourseFieldsProcessor _clsCourseFieldsProcessor;
+    @Reference private PortalExecutorManager _portalExecutorManager;
+    @Reference private AuditLogger _auditLogger;
+    @Reference private GroupLocalService _groupLocalService;
+    @Reference private UserLocalService _userLocalService;
+    @Reference private OneTimeS3LoadService _oneTimeS3LoadService;
+    @Reference private CourseEventDbMapper _courseEventDbMapper;
+
+    // ===== ID holder =====
+    private static final class AuditIds {
+        long companyId;
+        long groupId;
+        long userId;
+        String courseCode;
+        long ntucDTId;
+    }
+
+    // Track items for per-item COMPLETE
+    private static final class ItemAudit {
+        String courseCode;
+        long ntucDTId; // 0 if failed pre-insert
+    }
+
+    public Response postCourse(CourseEventList wrapper) {
+        List<CourseEvent> events = (wrapper.getEvents() == null) ? Collections.emptyList() : wrapper.getEvents();
+
+        final String corrId = currentCorrId();
+        final String fqcn = getClass().getName();
+
+        final List<CourseRestDtos.ErrorInfo> errors = new ArrayList<>();
+        final List<ItemAudit> itemAudits = new ArrayList<>();
+
+        // Batch-level audit START (summary)
+        AuditIds baseIds = resolveBaseIds();
+        Map<String, Object> batchMeta = baseMeta(corrId, fqcn, 0L, null);
+        batchMeta.put(AuditConstants.META_TOTAL, events.size());
+
+        _auditLogger.logExplicit(
+            baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+            AuditConstants.ACTION_NOTIFICATION_RECEIVED,
+            AuditConstants.STATUS_START + ": Batch received", null, batchMeta, corrId
+        );
+
+        int successCount = 0;
+
+        for (final CourseEvent event : events) {
+            if (event == null) {
+                _auditLogger.logExplicit(
+                    baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                    AuditConstants.ACTION_EVENT_INGEST,
+                    AuditConstants.STATUS_FAILED + ": Null event object", null,
+                    baseMeta(corrId, fqcn, 0L, null), corrId
+                );
+                errors.add(new CourseRestDtos.ErrorInfo(null, null, "ERR_NULL_EVENT", "Null event object in array"));
+                continue;
+            }
+
+            try {
+                validateEventHeader(event);
+            } catch (IllegalArgumentException iae) {
+                Map<String, Object> errMeta = baseMeta(corrId, fqcn, 0L, null);
+                errMeta.put(AuditConstants.META_REASON, iae.getMessage());
+
+                _auditLogger.logExplicit(
+                    baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                    AuditConstants.ACTION_EVENT_INGEST,
+                    AuditConstants.STATUS_FAILED + ": Header validation failed", null, errMeta, corrId
+                );
+
+                errors.add(new CourseRestDtos.ErrorInfo(
+                    event.getNotificationId(), null, "ERR_HEADER_VALIDATION", iae.getMessage()
+                ));
+                continue;
+            }
+
+            final List<Course> courses = (event.getCourses() == null) ? Collections.emptyList() : event.getCourses();
+            if (courses.isEmpty()) {
+                Map<String, Object> errMeta = baseMeta(corrId, fqcn, 0L, null);
+                errMeta.put("notificationId", event.getNotificationId());
+
+                _auditLogger.logExplicit(
+                    baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                    AuditConstants.ACTION_EVENT_INGEST,
+                    AuditConstants.STATUS_FAILED + ": No courses in event", null, errMeta, corrId
+                );
+
+                errors.add(new CourseRestDtos.ErrorInfo(
+                    event.getNotificationId(), null, "ERR_NO_COURSES",
+                    "No courses provided for notificationId: " + event.getNotificationId()
+                ));
+                continue;
+            }
+
+            for (final Course course : courses) {
+                final String courseCode = (course != null) ? course.getCourseCode() : null;
+
+                final Map<String, Object> itemMeta = baseMeta(corrId, fqcn, 0L, courseCode);
+                itemMeta.put("notificationId", event.getNotificationId());
+                itemMeta.put(AuditConstants.META_EVENT_TYPE, event.getEventType());
+                itemMeta.put("changeFrom", String.valueOf(event.getChangeFrom()));
+
+                if (course == null) {
+                    _auditLogger.logExplicit(
+                        baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                        AuditConstants.ACTION_EVENT_INGEST,
+                        AuditConstants.STATUS_FAILED + ": Null course entry", null, itemMeta, corrId
+                    );
+                    errors.add(new CourseRestDtos.ErrorInfo(
+                        event.getNotificationId(), null, "ERR_NULL_COURSE", "Null course entry in courses array"
+                    ));
+                    trackComplete(itemAudits, null, 0L);
+                    continue;
+                }
+
+                try {
+                    validateCourse(course);
+
+                    // Per-item RECEIVED
+                    _auditLogger.logExplicit(
+                        baseIds.groupId, baseIds.companyId, baseIds.userId, courseCode, 0L,
+                        AuditConstants.ACTION_NOTIFICATION_RECEIVED,
+                        AuditConstants.STATUS_START + ": Item received", null,
+                        baseMeta(corrId, fqcn, 0L, courseCode), corrId
+                    );
+
+                    long pk = _counterLocalService.increment(NtucSB.class.getName());
+                    NtucSB sb = _ntucSBLocalService.createNtucSB(pk);
+                    sb.setCourseCode(course.getCourseCode());
+                    sb.setCourseType(course.getCourseType());
+                    sb.setEvent(isBlank(event.getEventType()) ? "pending" : event.getEventType());
+                    sb.setNotificationDate(parseDate(event.getTimestamp()));
+                    sb.setSystemDate(new Date());
+                    sb.setChangeFrom(_courseEventDbMapper.toChangeFromDbString(event));
+                    sb.setNotificationId(event.getNotificationId());
+                    sb.setCanRetry(true);
+
+                    NtucSB added = _ntucSBLocalService.addNtucSB(sb);
+                    long ntucDTId = (added != null) ? added.getNtucDTId() : 0L;
+
+                    // Optional: row lock prevention check (kept as-is)
+                    if (event.getChangeFrom() != null && !event.getChangeFrom().isEmpty()) {
+                        boolean hasUnsuccessfulRecord = event.getChangeFrom().stream()
+                            .map(cf -> _ntucSBLocalService.getRecordsByChangeFrom(cf))
+                            .filter(Objects::nonNull)
+                            .flatMap(List::stream)
+                            .collect(Collectors.groupingBy(
+                                NtucSB::getChangeFrom,
+                                Collectors.maxBy(Comparator.comparing(NtucSB::getSystemDate))
+                            ))
+                            .values()
+                            .stream()
+                            .filter(Optional::isPresent)
+                            .map(Optional::get)
+                            .anyMatch(record -> !ProcessingStatusConstants.SUCCESS
+                                .equalsIgnoreCase(record.getProcessingStatus()));
+
+                        if (hasUnsuccessfulRecord) {
+                            NtucSB persisted = _ntucSBLocalService.fetchNtucSB(ntucDTId);
+                            NtucSB toUpdate = (persisted != null) ? persisted : added;
+                            if (toUpdate != null) {
+                                toUpdate.setIsRowLockFailed(true);
+                                _ntucSBLocalService.updateNtucSB(toUpdate);
+                            }
+                            _log.info("Skipping processing — existing record(s) not in success state for same changeFrom");
+                            errors.add(new CourseRestDtos.ErrorInfo(
+                                event.getNotificationId(),
+                                course.getCourseCode(),
+                                "ERR_VALIDATION",
+                                "Existing record for same changeFrom is not in SUCCESS state"
+                            ));
+                        }
+                    }
+
+                    trackComplete(itemAudits, course.getCourseCode(), ntucDTId);
+
+                    AuditIds ids = resolveAuditIdsForCourse(course.getCourseCode(), added);
+
+                    // Audit: EVENT_PERSIST
+                    Map<String, Object> persistMeta = new HashMap<>(itemMeta);
+                    _auditLogger.logExplicit(
+                        ids.groupId, ids.companyId, ids.userId, ids.courseCode, ids.ntucDTId,
+                        AuditConstants.ACTION_EVENT_PERSIST,
+                        AuditConstants.STATUS_SUCCESS + ": Event persisted", changed("persisted", true),
+                        persistMeta, corrId
+                    );
+
+                    // Build a per-course working event (singleton course list)
+                    CourseEvent perCourseEvent = new CourseEvent();
+                    perCourseEvent.setNotificationId(event.getNotificationId());
+                    perCourseEvent.setEventType(event.getEventType());
+                    perCourseEvent.setChangeFrom(event.getChangeFrom());
+                    perCourseEvent.setTimestamp(event.getTimestamp());
+                    perCourseEvent.setCourseTypeSingle(course.getCourseType());
+                    perCourseEvent.setCourseCodeSingle(course.getCourseCode());
+                    perCourseEvent.setNtucSB(added);
+
+                    final ExecutorService executor =
+                        _portalExecutorManager.getPortalExecutor("notification-handler");
+
+                    CompletableFuture.runAsync(MdcUtil.wrap(() -> {
+                        try {
+                            Map<String, Object> startMeta = baseMeta(corrId, fqcn, ntucDTId, courseCode);
+                            startMeta.put(AuditConstants.META_EVENT_TYPE, event.getEventType());
+
+                            _auditLogger.logExplicit(
+                                ids.groupId, ids.companyId, ids.userId, ids.courseCode, ids.ntucDTId,
+                                AuditConstants.ACTION_EVENT_PROCESS,
+                                AuditConstants.STATUS_START + ": Async processing start",
+                                null, startMeta, corrId
+                            );
+
+                            _log.info(prefix(corrId, fqcn) + " Async processing started for "
+                                + courseCode + " type=" + event.getEventType());
+
+                            _clsCourseFieldsProcessor.handleCourseNotification(perCourseEvent, false);
+
+                            Map<String, Object> okMeta = baseMeta(corrId, fqcn, ntucDTId, courseCode);
+                            okMeta.put(AuditConstants.META_EVENT_TYPE, event.getEventType());
+
+                            _auditLogger.logExplicit(
+                                ids.groupId, ids.companyId, ids.userId, ids.courseCode, ids.ntucDTId,
+                                AuditConstants.ACTION_EVENT_PROCESS,
+                                AuditConstants.STATUS_SUCCESS + ": Async processing done",
+                                null, okMeta, corrId
+                            );
+                        } catch (Exception e) {
+                            Map<String, Object> failMeta = baseMeta(corrId, fqcn, ntucDTId, courseCode);
+                            failMeta.put(AuditConstants.META_EVENT_TYPE, event.getEventType());
+                            failMeta.put(AuditConstants.META_ERROR, e.getClass().getSimpleName());
+                            failMeta.put(AuditConstants.META_MESSAGE, safeMsg(e));
+
+                            _auditLogger.logExplicit(
+                                ids.groupId, ids.companyId, ids.userId, ids.courseCode, ids.ntucDTId,
+                                AuditConstants.ACTION_EVENT_PROCESS,
+                                AuditConstants.STATUS_FAILED + ": Async processing failed",
+                                null, failMeta, corrId
+                            );
+
+                            _log.error(prefix(corrId, fqcn) + " Async processing failed for " + courseCode, e);
+                        }
+                    }), executor);
+
+                    // Mark enqueued
+                    Map<String, Object> enqMeta = new HashMap<>(itemMeta);
+                    _auditLogger.logExplicit(
+                        ids.groupId, ids.companyId, ids.userId, ids.courseCode, ids.ntucDTId,
+                        AuditConstants.ACTION_EVENT_ENQUEUE,
+                        AuditConstants.STATUS_ENQUEUED + ": Task submitted", null, enqMeta, corrId
+                    );
+
+                    successCount++;
+
+                } catch (IllegalArgumentException iae) {
+                    Map<String, Object> errMeta = new HashMap<>(itemMeta);
+                    errMeta.put(AuditConstants.META_REASON, iae.getMessage());
+
+                    trackComplete(itemAudits, course.getCourseCode(), 0L);
+
+                    _auditLogger.logExplicit(
+                        baseIds.groupId, baseIds.companyId, baseIds.userId, course.getCourseCode(), 0L,
+                        AuditConstants.ACTION_EVENT_INGEST,
+                        AuditConstants.STATUS_FAILED + ": Validation failed", null, errMeta, corrId
+                    );
+
+                    errors.add(new CourseRestDtos.ErrorInfo(
+                        event.getNotificationId(), course.getCourseCode(), "ERR_VALIDATION", iae.getMessage()
+                    ));
+
+                } catch (Exception ex) {
+                    Map<String, Object> errMeta = new HashMap<>(itemMeta);
+                    errMeta.put(AuditConstants.META_ERROR, ex.getClass().getSimpleName());
+                    errMeta.put(AuditConstants.META_MESSAGE, safeMsg(ex));
+
+                    trackComplete(itemAudits, course.getCourseCode(), 0L);
+
+                    _auditLogger.logExplicit(
+                        baseIds.groupId, baseIds.companyId, baseIds.userId, course.getCourseCode(), 0L,
+                        AuditConstants.ACTION_EVENT_INGEST,
+                        AuditConstants.STATUS_FAILED + ": Internal error", null, errMeta, corrId
+                    );
+
+                    _log.error(prefix(corrId, fqcn) + " Error processing event for course " + course.getCourseCode(), ex);
+
+                    errors.add(new CourseRestDtos.ErrorInfo(
+                        event.getNotificationId(), course.getCourseCode(), "ERR_INTERNAL", "Internal processing error"
+                    ));
+                }
+            }
+        }
+
+        // Per-item NOTIFICATION_COMPLETE
+        Set<String> failedCodes = errors.stream()
+            .filter(e -> e.courseCode != null)
+            .map(e -> e.courseCode)
+            .collect(Collectors.toSet());
+
+        for (ItemAudit ia : itemAudits) {
+            String cc = (ia.courseCode == null) ? "" : ia.courseCode;
+            boolean ok = !failedCodes.contains(cc);
+            String desc = (ok ? AuditConstants.STATUS_SUCCESS : AuditConstants.STATUS_FAILED) + ": Item complete";
+
+            AuditIds ids = resolveBaseIds();
+
+            _auditLogger.logExplicit(
+                ids.groupId, ids.companyId, ids.userId, cc, ia.ntucDTId,
+                AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+                desc, null, baseMeta(corrId, fqcn, ia.ntucDTId, cc), corrId
+            );
+        }
+
+        // Batch-level result (summary)
+        Map<String, Object> doneMeta = baseMeta(corrId, fqcn, 0L, null);
+        doneMeta.put(AuditConstants.META_TOTAL, events.size());
+        doneMeta.put(AuditConstants.META_COUNT, successCount);
+
+        final String status;
+        final String message;
+
+        if (errors.isEmpty()) {
+            status = AuditConstants.STATUS_SUCCESS;
+            message = "Events received and processed successfully.";
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+                status + ": Batch success", null, doneMeta, corrId
+            );
+            return Response.ok(new CourseRestDtos.FinalResponse(status, message, errors)).build();
+        }
+
+        if (successCount > 0) {
+            status = AuditConstants.STATUS_PARTIAL;
+            message = "Some events failed to be handled.";
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+                status + ": Batch partial",
+                Collections.singletonMap("errors", errors), doneMeta, corrId
+            );
+            return Response.status(400).entity(new CourseRestDtos.FinalResponse(status, message, errors)).build();
+        }
+
+        status = AuditConstants.STATUS_FAILED;
+        message = "All events failed to be handled.";
+        _auditLogger.logExplicit(
+            baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+            AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+            status + ": Batch failed",
+            Collections.singletonMap("errors", errors), doneMeta, corrId
+        );
+        return Response.status(400).entity(new CourseRestDtos.FinalResponse(status, message, errors)).build();
+    }
+
+    public Response getLatestSchedule(String courseCode) {
+        final String corrId = currentCorrId();
+        final String fqcn = getClass().getName();
+
+        if (isBlank(courseCode)) {
+            _log.warn(prefix(corrId, fqcn) + " Missing courseCode in path");
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(errorResponse("400", "courseCode path param is required")).build();
+        }
+
+        AuditIds baseIds = resolveBaseIds();
+
+        try {
+            Map<String, Object> meta = baseMeta(corrId, fqcn, 0L, courseCode);
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, courseCode, 0L,
+                AuditConstants.ACTION_SCHEDULE_FETCH,
+                AuditConstants.STATUS_START + ": Fetch latest schedule",
+                null, meta, corrId
+            );
+
+            ScheduleResponse schedule = _clsCourseFieldsProcessor.handleCourseSchedules(courseCode.trim());
+
+            if (schedule == null) {
+                _auditLogger.logExplicit(
+                    baseIds.groupId, baseIds.companyId, baseIds.userId, courseCode, 0L,
+                    AuditConstants.ACTION_SCHEDULE_FETCH,
+                    AuditConstants.STATUS_NOT_FOUND + ": No schedules",
+                    null, meta, corrId
+                );
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(errorResponse("404", "No schedules found for courseCode: " + courseCode)).build();
+            }
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, courseCode, 0L,
+                AuditConstants.ACTION_SCHEDULE_FETCH,
+                AuditConstants.STATUS_SUCCESS + ": Schedule returned",
+                null, meta, corrId
+            );
+
+            return Response.ok(schedule).build();
+
+        } catch (Exception ex) {
+            Map<String, Object> meta = baseMeta(corrId, fqcn, 0L, courseCode);
+            meta.put(AuditConstants.META_ERROR, ex.getClass().getSimpleName());
+            meta.put(AuditConstants.META_MESSAGE, safeMsg(ex));
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, courseCode, 0L,
+                AuditConstants.ACTION_SCHEDULE_FETCH,
+                AuditConstants.STATUS_FAILED + ": Schedule fetch error",
+                null, meta, corrId
+            );
+
+            _log.error(prefix(corrId, fqcn) + " Failed to retrieve schedule for courseCode: " + courseCode, ex);
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(errorResponse("500", "Something went wrong on integration service.")).build();
+        }
+    }
+
+    public Response postOneTimeLoad(CourseRestDtos.OneTimeLoadRequest req) {
+        final String corrId = currentCorrId();
+        final String fqcn = getClass().getName();
+
+        if (req == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(errorResponse("400", "Request body required")).build();
+        }
+        if (isBlank(req.s3Path)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(errorResponse("400", "s3Path is required")).build();
+        }
+        if (!req.s3Path.startsWith("s3://")) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(errorResponse("400", "s3Path must start with s3://")).build();
+        }
+
+        final String[] bp = parseBucketAndPrefix(req.s3Path);
+        final String bucket = bp[0];
+        final String prefix = bp[1];
+
+        AuditIds baseIds = resolveBaseIds();
+
+        Map<String, Object> meta = baseMeta(corrId, fqcn, 0L, null);
+        meta.put("s3Path", req.s3Path);
+        meta.put("bucket", bucket);
+        meta.put("prefix", prefix);
+
+        _auditLogger.logExplicit(
+            baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+            AuditConstants.ACTION_ONE_TIME_LOAD,
+            AuditConstants.STATUS_START + ": One-time load request received",
+            null, meta, corrId
+        );
+
+        try {
+            Map<String, Object> startMeta = baseMeta(corrId, fqcn, 0L, null);
+            startMeta.put("bucket", bucket);
+            startMeta.put("prefix", prefix);
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_ONE_TIME_LOAD_PROCESS,
+                AuditConstants.STATUS_START + ": Processing started",
+                null, startMeta, corrId
+            );
+
+            _oneTimeS3LoadService.execute(bucket, prefix);
+
+            Map<String, Object> okMeta = baseMeta(corrId, fqcn, 0L, null);
+            okMeta.put("bucket", bucket);
+            okMeta.put("prefix", prefix);
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_ONE_TIME_LOAD_PROCESS,
+                AuditConstants.STATUS_SUCCESS + ": Processing complete",
+                null, okMeta, corrId
+            );
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+                AuditConstants.STATUS_SUCCESS + ": One-time load task complete",
+                null, baseMeta(corrId, fqcn, 0L, null), corrId
+            );
+
+            return Response.ok(
+                new CourseRestDtos.OneTimeLoadResponse(AuditConstants.STATUS_SUCCESS, "One-time S3 load completed.", corrId)
+            ).build();
+
+        } catch (Exception ex) {
+            Map<String, Object> errMeta = baseMeta(corrId, fqcn, 0L, null);
+            errMeta.put(AuditConstants.META_ERROR, ex.getClass().getSimpleName());
+            errMeta.put(AuditConstants.META_MESSAGE, safeMsg(ex));
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_ONE_TIME_LOAD_PROCESS,
+                AuditConstants.STATUS_FAILED + ": Processing error",
+                null, errMeta, corrId
+            );
+
+            _auditLogger.logExplicit(
+                baseIds.groupId, baseIds.companyId, baseIds.userId, "", 0L,
+                AuditConstants.ACTION_NOTIFICATION_COMPLETE,
+                AuditConstants.STATUS_FAILED + ": One-time load task complete",
+                null, baseMeta(corrId, fqcn, 0L, null), corrId
+            );
+
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(errorResponse("500", "One-time S3 load failed: " + safeMsg(ex))).build();
+        }
+    }
+
+    public Response subscriptionsDummy(String productCode) {
+        try {
+            String code = productCode != null ? productCode.trim() : null;
+            SubscriptionsDummy subscriptionsDummy = _clsCourseFieldsProcessor.handleSubscriptionsDummy(code);
+
+            if (subscriptionsDummy == null) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(errorResponse("404", "No Subscriptions found for productCode: " + code))
+                    .build();
+            }
+            return Response.ok(subscriptionsDummy).build();
+        } catch (Exception ex) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(errorResponse("500", "Something went wrong on integration service."))
+                .build();
+        }
+    }
+
+    public Response coursesDummy(String courseCode) {
+        try {
+            String code = courseCode != null ? courseCode.trim() : null;
+            CoursesDummy coursesDummy = _clsCourseFieldsProcessor.handleCoursesDummy(code);
+
+            if (coursesDummy == null) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(errorResponse("404", "No Courses found for courseCode: " + code))
+                    .build();
+            }
+            return Response.ok(coursesDummy).build();
+        } catch (Exception ex) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(errorResponse("500", "Something went wrong on integration service."))
+                .build();
+        }
+    }
+
+    // ===== Extracted helper (was incorrectly inside REST resource) =====
+    public static Optional<NtucSB> findBlockingRecord(
+        long currentDtId,
+        CourseEvent event,
+        NtucSBLocalService ntucSBLocalService
+    ) {
+        final String eventType = (event.getEventType() == null) ? "" : event.getEventType().trim();
+
+        final Predicate<NtucSB> excludeCurrent = record -> record.getNtucDTId() != currentDtId;
+
+        final Predicate<String> isInProgress = status ->
+            status != null && ProcessingStatusConstants.PROCESSING.equalsIgnoreCase(status);
+
+        if (NotificationType.PUBLISHED.equalsIgnoreCase(eventType)) {
+            Optional<NtucSB> recordOpt = ntucSBLocalService
+                .fetchLatestByCourseAndEvent(event.getCourseCodeSingle(), eventType, currentDtId);
+
+            return recordOpt
+                .filter(Objects::nonNull)
+                .filter(excludeCurrent)
+                .filter(record -> isInProgress.test(record.getProcessingStatus()));
+        }
+
+        if (NotificationType.CHANGED.equalsIgnoreCase(eventType)) {
+            final Predicate<NtucSB> validBlocking =
+                excludeCurrent.and(r -> isInProgress.test(r.getProcessingStatus()));
+
+            return Optional.ofNullable(event.getChangeFrom())
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .map(ct -> ntucSBLocalService
+                    .fetchLatestByCourseEventAndChangeFrom(event.getCourseCodeSingle(), eventType, ct, currentDtId)
+                    .filter(Objects::nonNull)
+                    .filter(validBlocking))
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .findFirst();
+        }
+
+        return Optional.empty();
+    }
+
+    // ===== Validation (bug fixed: && not ||) =====
+
+    private void validateEventHeader(CourseEvent event) {
+        if (isBlank(event.getNotificationId())) {
+            throw new IllegalArgumentException("notificationId is required");
+        }
+        if (isBlank(event.getEventType())) {
+            throw new IllegalArgumentException("eventType is required");
+        }
+        if (!shouldProcessEventType(event.getEventType())) {
+            throw new IllegalArgumentException("eventType " + event.getEventType() + " is invalid");
+        }
+
+        if (NotificationType.CHANGED.equalsIgnoreCase(event.getEventType())) {
+            if (event.getChangeFrom() == null || event.getChangeFrom().isEmpty()) {
+                throw new IllegalArgumentException("changeFrom is required and must be non-empty");
+            }
+
+            final Set<String> allowed = new HashSet<>(Arrays.asList(
+                ChangeFromConstants.COURSE,
+                ChangeFromConstants.PRICING_TABLE,
+                ChangeFromConstants.FUNDING_ELIGIBILITY_CRITERIA,
+                ChangeFromConstants.SUBSIDY
+            ));
+
+            boolean containsAllowed = event.getChangeFrom().stream().anyMatch(allowed::contains);
+            if (!containsAllowed) {
+                throw new IllegalArgumentException(
+                    "changeFrom must contain at least one of " + allowed + " but was: " + event.getChangeFrom()
+                );
+            }
+        }
+
+        if (isBlank(event.getTimestamp())) {
+            throw new IllegalArgumentException("timestamp is required");
+        }
+
+        try {
+            new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").parse(event.getTimestamp());
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Invalid timestamp format: " + event.getTimestamp());
+        }
+    }
+
+    private void validateCourse(Course c) {
+        if (c == null) {
+            throw new IllegalArgumentException("course entry is null");
+        }
+
+        if (isBlank(c.getCourseCode())) {
+            throw new IllegalArgumentException("courseCode is required");
+        }
+        if (c.getCourseCode().length() > 20) {
+            throw new IllegalArgumentException("courseCode must not exceed 20 characters");
+        }
+
+        if (isBlank(c.getCourseType())) {
+            throw new IllegalArgumentException("courseType is required");
+        }
+        if (!"TMS".equalsIgnoreCase(c.getCourseType())) {
+            throw new IllegalArgumentException("Unsupported courseType: " + c.getCourseType());
+        }
+    }
+
+    private boolean shouldProcessEventType(String eventType) {
+        return Arrays.asList(
+            NotificationType.PUBLISHED,
+            NotificationType.UNPUBLISHED,
+            NotificationType.CHANGED,
+            NotificationType.INACTIVE
+        ).stream().anyMatch(type -> eventType.equalsIgnoreCase(type));
+    }
+
+    // ===== Common helpers =====
+
+    private static void trackComplete(List<ItemAudit> itemAudits, String courseCode, long ntucDTId) {
+        ItemAudit ia = new ItemAudit();
+        ia.courseCode = courseCode;
+        ia.ntucDTId = ntucDTId;
+        itemAudits.add(ia);
+    }
+
+    private static String[] parseBucketAndPrefix(String s3Path) {
+        String raw = s3Path.substring("s3://".length());
+        int slash = raw.indexOf('/');
+        if (slash < 0) {
+            return new String[] { raw, "" };
+        }
+        return new String[] { raw.substring(0, slash), raw.substring(slash + 1) };
+    }
+
+    private Map<String, Object> errorResponse(String code, String message) {
+        Map<String, Object> error = new HashMap<>();
+        Map<String, String> detail = new HashMap<>();
+        detail.put("code", code);
+        detail.put("message", message);
+        error.put("error", detail);
+        return error;
+    }
+
+    private Date parseDate(String timestamp) {
+        try {
+            return new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").parse(timestamp);
+        } catch (ParseException e) {
+            _log.error("Timestamp parsing error: " + timestamp, e);
+            return null;
+        }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    private static String safeMsg(Exception e) {
+        String msg = e.getMessage();
+        return (msg == null) ? e.getClass().getSimpleName() : msg;
+    }
+
+    private static String prefix(String corrId, String fqcn) {
+        return "[corrId=" + corrId + "][fqcn=" + fqcn + "] ";
+    }
+
+    private String currentCorrId() {
+        String c = MdcUtil.getCorrId();
+        return (c != null) ? c : UUID.randomUUID().toString();
+    }
+
+    private Map<String, Object> baseMeta(String corrId, String fqcn, long ntucDTId, String courseCode) {
+        Map<String, Object> m = new HashMap<>();
+        if (corrId != null) m.put(AuditConstants.META_CORR_ID, corrId);
+        if (fqcn != null) m.put(AuditConstants.META_FQCN, fqcn);
+        if (ntucDTId > 0) m.put(AuditConstants.META_NTUC_DT_ID, ntucDTId);
+        if (courseCode != null) m.put(AuditConstants.META_COURSE_CODE, courseCode);
+        return m;
+    }
+
+    private Map<String, Object> changed(String key, Object val) {
+        Map<String, Object> m = new HashMap<>();
+        m.put(key, val);
+        return m;
+    }
+
+    // ---- ID Resolution ----
+
+    private AuditIds resolveBaseIds() {
+        AuditIds ids = new AuditIds();
+
+        long ctl = CompanyThreadLocal.getCompanyId();
+        ids.companyId = (ctl > 0) ? ctl : PortalUtil.getDefaultCompanyId();
+
+        long g = FALLBACK_GROUP_ID;
+        if (g <= 0) {
+            Group companyGroup = _groupLocalService.fetchCompanyGroup(ids.companyId);
+            g = (companyGroup != null) ? companyGroup.getGroupId() : 0L;
+        }
+        ids.groupId = g;
+
+        long currentUserId = PrincipalThreadLocal.getUserId();
+        if (currentUserId > 0) {
+            ids.userId = currentUserId;
+        } else {
+            try {
+                ids.userId = _userLocalService.getDefaultUserId(ids.companyId);
+            } catch (Exception e) {
+                ids.userId = 0L;
+            }
+        }
+
+        ids.courseCode = "";
+        ids.ntucDTId = 0L;
+
+        return ids;
+    }
+
+    private AuditIds resolveAuditIdsForCourse(String courseCode, NtucSB added) {
+        AuditIds ids = new AuditIds();
+
+        ids.courseCode = (courseCode != null) ? courseCode.trim()
+            : (added != null ? GetterUtil.getString(added.getCourseCode()) : "");
+
+        if (added != null && added.getCompanyId() > 0) {
+            ids.companyId = added.getCompanyId();
+        } else {
+            long ctl = CompanyThreadLocal.getCompanyId();
+            ids.companyId = (ctl > 0) ? ctl : PortalUtil.getDefaultCompanyId();
+        }
+
+        long g = FALLBACK_GROUP_ID;
+        if (g <= 0) {
+            Group companyGroup = _groupLocalService.fetchCompanyGroup(ids.companyId);
+            g = (companyGroup != null) ? companyGroup.getGroupId() : 0L;
+        }
+        ids.groupId = g;
+
+        long currentUserId = PrincipalThreadLocal.getUserId();
+        if (currentUserId > 0) {
+            ids.userId = currentUserId;
+        } else {
+            try {
+                ids.userId = _userLocalService.getDefaultUserId(ids.companyId);
+            } catch (Exception e) {
+                ids.userId = 0L;
+            }
+        }
+
+        ids.ntucDTId = (added != null) ? added.getNtucDTId() : 0L;
+
+        return ids;
+    }
+}

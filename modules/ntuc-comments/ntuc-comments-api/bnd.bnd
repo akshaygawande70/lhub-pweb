@@ -1,0 +1,10 @@
+Bundle-Name: ntuc-comments-api
+Bundle-SymbolicName: svc.ntuc.nlh.comments.api
+Bundle-Version: 1.0.0
+Export-Package:\
+	svc.ntuc.nlh.comments.exception,\
+	svc.ntuc.nlh.comments.model,\
+	svc.ntuc.nlh.comments.service,\
+	svc.ntuc.nlh.comments.service.persistence
+-check: EXPORTS
+-includeresource: META-INF/service.xml=../ntuc-comments-service/service.xml

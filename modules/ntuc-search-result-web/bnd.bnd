@@ -1,0 +1,4 @@
+Bundle-Name: ntuc-search-result-web
+Bundle-SymbolicName: web.ntuc.nlh.search.result
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.nlh.search.result.constants

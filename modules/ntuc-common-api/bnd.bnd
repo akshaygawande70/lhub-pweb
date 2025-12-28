@@ -1,0 +1,48 @@
+Bundle-Name: ntuc-common-api
+Bundle-SymbolicName: api.ntuc.common
+Bundle-Version: 1.0.0
+Import-Package: *; version="0";resolution:="optional"
+Export-Package: api.ntuc.common*
+Bundle-ClassPath:\
+	.,\
+	lib/gson.jar,\
+	lib/httpclient.jar,\
+	lib/httpcore.jar,\
+	lib/httpcore.jar,\
+	lib/xmlworker-5.5.13.3.jar,\
+	lib/html2pdf-2.1.6.jar,\
+	lib/barcodes-7.1.18.jar,\
+	lib/font-asian-7.1.18.jar,\
+	lib/forms-7.1.18.jar,\
+	lib/hyph-7.1.18.jar,\
+	lib/io-7.1.18.jar,\
+	lib/kernel-7.1.18.jar,\
+	lib/layout-7.1.18.jar,\
+	lib/pdfa-7.1.18.jar,\
+	lib/sign-7.1.18.jar,\
+	lib/styled-xml-parser-7.1.18.jar,\
+	lib/svg-7.1.18.jar,\
+	lib/bcprov-jdk15on-1.68.jar,\
+	lib/bcpkix-jdk15on-1.68.jar,\
+	lib/itextpdf-5.5.13.3.jar
+-includeresource:\
+	lib/gson.jar=gson-2.8.5.jar,\
+	lib/httpclient.jar=httpclient-4.5.12.jar,\
+	lib/itextpdf-5.5.13.3.jar=itextpdf-5.5.13.3.jar,\
+	lib/xmlworker-5.5.13.3.jar=xmlworker-5.5.13.3.jar,\
+	lib/html2pdf-2.1.6.jar=html2pdf-2.1.6.jar,\
+	lib/barcodes-7.1.18.jar=barcodes-7.1.18.jar,\
+	lib/font-asian-7.1.18.jar=font-asian-7.1.18.jar,\
+	lib/forms-7.1.18.jar=forms-7.1.18.jar,\
+	lib/hyph-7.1.18.jar=hyph-7.1.18.jar,\
+	lib/io-7.1.18.jar=io-7.1.18.jar,\
+	lib/kernel-7.1.18.jar=kernel-7.1.18.jar,\
+	lib/layout-7.1.18.jar=layout-7.1.18.jar,\
+	lib/pdfa-7.1.18.jar=pdfa-7.1.18.jar,\
+	lib/sign-7.1.18.jar=sign-7.1.18.jar,\
+	lib/styled-xml-parser-7.1.18.jar=styled-xml-parser-7.1.18.jar,\
+	lib/svg-7.1.18.jar=svg-7.1.18.jar,\
+	lib/bcprov-jdk15on-1.68.jar=bcprov-jdk15on-1.68.jar,\
+	lib/bcpkix-jdk15on-1.68.jar=bcpkix-jdk15on-1.68.jar,\
+	lib/httpcore.jar=httpcore-4.4.13.jar
+-fixupmessages "Classes found in the wrong directory"; restrict:=error; is:=warning	

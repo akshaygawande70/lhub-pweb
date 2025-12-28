@@ -1,0 +1,4 @@
+Bundle-Name: eshop-account-hook-web
+Bundle-SymbolicName: web.ntuc.eshop.account
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.account.constants

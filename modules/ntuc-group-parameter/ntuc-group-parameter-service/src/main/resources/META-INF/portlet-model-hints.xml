@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<model-hints>
+	<model name="svc.ntuc.nlh.parameter.model.Parameter">
+		<field name="parameterId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="parameterGroupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="createdBy" type="long" />
+		<field name="createdDate" type="Date" />
+		<field name="modifiedBy" type="long" />
+		<field name="modifiedDate" type="Date" />
+		<field name="paramCode" type="String" />
+		<field name="paramName" type="String" />
+		<field name="paramValue" type="String" />
+		<field name="description" type="String" />
+		<field name="deleted" type="Boolean" />
+	</model>
+	<model name="svc.ntuc.nlh.parameter.model.ParameterGroup">
+		<field name="parameterGroupId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="createdBy" type="long" />
+		<field name="createdDate" type="Date" />
+		<field name="modifiedBy" type="long" />
+		<field name="modifiedDate" type="Date" />
+		<field name="parentId" type="long" />
+		<field name="groupName" type="String" />
+		<field name="groupCode" type="String" />
+		<field name="description" type="String" />
+		<field name="deleted" type="Boolean" />
+	</model>
+	<model name="svc.ntuc.nlh.parameter.model.ReservedParameter">
+		<field name="reservedParameterId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="parameterId" type="long" />
+		<field name="parameterGroupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="createdBy" type="long" />
+		<field name="createdDate" type="Date" />
+		<field name="modifiedBy" type="long" />
+		<field name="modifiedDate" type="Date" />
+		<field name="paramCode" type="String" />
+		<field name="reservedBy" type="String" />
+	</model>
+</model-hints>

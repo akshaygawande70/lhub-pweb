@@ -1,0 +1,8 @@
+dependencies {
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+	compileOnly 'com.liferay:com.liferay.captcha.api'
+	compileOnly 'com.liferay:com.liferay.login.web'
+	compileOnly project(":modules:ntuc-common-api")
+	compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+	cssBuilder group: "com.liferay", name: "com.liferay.css.builder", version: "3.0.2"
+}

@@ -1,0 +1,15 @@
+dependencies {
+    compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+    compileOnly "org.osgi:org.osgi.service.jaxrs"
+    compileOnly "org.json:json:20210307"
+    compileOnly "javax.annotation:javax.annotation-api:1.3.2"
+    compileOnly "javax.ws.rs:javax.ws.rs-api:2.1.1"
+    compileOnly "org.slf4j:slf4j-api:1.7.30"
+
+    testImplementation group: "junit", name: "junit", version: "4.13.2"
+    testImplementation group: "org.mockito", name: "mockito-core", version: "3.12.4"
+
+    compileOnly project(":modules:ntuc-common-api")
+    compileOnly project(":modules:ntuc-content-api")
+    compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+}

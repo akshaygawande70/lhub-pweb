@@ -1,0 +1,4 @@
+Bundle-Name: eshop-register-web
+Bundle-SymbolicName: web.ntuc.eshop.register
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.register.constants

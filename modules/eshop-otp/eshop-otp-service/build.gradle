@@ -1,0 +1,21 @@
+dependencies {
+	compile project(":modules:eshop-otp:eshop-otp-api")
+	
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+	compileOnly project(":modules:ntuc-common-api")
+	compileOnly project(":modules:ntuc-group-parameter:ntuc-group-parameter-api")
+}
+
+buildService {
+	apiDir = "../eshop-otp-api/src/main/java"
+}
+
+group = "svc.ntuc.nlh.otp"
+
+tasks.withType(JavaCompile) {
+
+	// Generated classes using Jodd library are unable to be read when compiled against JDK 11
+
+	sourceCompatibility = JavaVersion.VERSION_1_8
+	targetCompatibility = JavaVersion.VERSION_1_8
+}

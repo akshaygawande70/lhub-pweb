@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+
+<model-hints>
+	<model name="com.ntuc.notification.model.AuditLog">
+		<field name="auditLogId" type="long" />
+		<field name="createDate" type="Date" />
+		<field name="modifiedDate" type="Date" />
+		<field name="groupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="userId" type="long" />
+		<field name="courseCode" type="String" />
+		<field name="ntucDTId" type="long" />
+		<field name="startTimeMs" type="long" />
+		<field name="endTimeMs" type="long" />
+		<field name="durationMs" type="long" />
+		<field name="correlationId" type="String" />
+		<field name="jobRunId" type="String" />
+		<field name="requestId" type="String" />
+		<field name="eventId" type="String" />
+		<field name="severity" type="String" />
+		<field name="status" type="String" />
+		<field name="step" type="String" />
+		<field name="category" type="String" />
+		<field name="message" type="String" />
+		<field name="errorCode" type="String" />
+		<field name="errorMessage" type="String" />
+		<field name="exceptionClass" type="String" />
+		<field name="alertFingerprint" type="String" />
+		<field name="stackTraceHash" type="String" />
+		<field name="stackTraceTruncated" type="Blob" />
+		<field name="detailsJson" type="Blob" />
+	</model>
+	<model name="com.ntuc.notification.model.CourseSchedule">
+		<field name="uuid" type="String" />
+		<field name="courseScheduleId" type="long" />
+		<field name="groupId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="createDate" type="Date" />
+		<field name="modifiedDate" type="Date" />
+		<field name="courseCode" type="String">
+			<hint name="max-length">255</hint>
+		</field>
+		<field name="intakeNumber" type="String">
+			<hint name="max-length">255</hint>
+		</field>
+		<field name="startDate" type="Date" />
+		<field name="endDate" type="Date" />
+		<field name="durationHours" type="int" />
+		<field name="durationMinutes" type="int" />
+		<field name="availability" type="int" />
+		<field name="venue" type="String">
+			<hint name="max-length">512</hint>
+		</field>
+		<field name="description" type="String">
+			<hint name="max-length">2000</hint>
+		</field>
+		<field name="availablePax" type="String">
+			<hint name="max-length">50</hint>
+		</field>
+		<field name="availableWaitlist" type="String">
+			<hint name="max-length">50</hint>
+		</field>
+		<field name="lxpBuyUrl" type="String">
+			<hint name="max-length">1024</hint>
+		</field>
+		<field name="lxpRoiUrl" type="String">
+			<hint name="max-length">1024</hint>
+		</field>
+		<field name="importantNote" type="String">
+			<hint name="max-length">2000</hint>
+		</field>
+		<field name="scheduleDownloadUrl" type="String">
+			<hint name="max-length">1024</hint>
+		</field>
+		<field name="errorCode" type="String">
+			<hint name="max-length">255</hint>
+		</field>
+		<field name="errorMessage" type="String">
+			<hint name="max-length">2000</hint>
+		</field>
+		<field name="rawJson" type="String">
+			<hint name="max-length">4000</hint>
+		</field>
+		<field name="modifiedBy" type="long" />
+	</model>
+	<model name="com.ntuc.notification.model.NtucSB">
+		<field name="ntucDTId" type="long" />
+		<field name="companyId" type="long" />
+		<field name="courseCode" type="String" />
+		<field name="courseType" type="String" />
+		<field name="notificationDate" type="Date" />
+		<field name="systemDate" type="Date" />
+		<field name="notificationId" type="String" />
+		<field name="event" type="String" />
+		<field name="changeFrom" type="String" />
+		<field name="processingStatus" type="String" />
+		<field name="courseStatus" type="String" />
+		<field name="isCriticalProcessed" type="boolean" />
+		<field name="isNonCriticalProcessed" type="boolean" />
+		<field name="isCronProcessed" type="boolean" />
+		<field name="canRetry" type="boolean" />
+		<field name="lastRetried" type="Date" />
+		<field name="totalRetries" type="int" />
+		<field name="isRowLockFailed" type="boolean" />
+	</model>
+</model-hints>

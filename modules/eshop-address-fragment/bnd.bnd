@@ -1,0 +1,5 @@
+Bundle-Name: eshop-address-fragment
+Bundle-SymbolicName: eshop.address.fragment
+Bundle-Version: 1.0.0
+Fragment-Host: com.liferay.commerce.address.content.web;bundle-version="3.0.9"
+Portal-Bundle-Version: 7.3.10

@@ -1,0 +1,5 @@
+Bundle-Name: eshop-checkout-fragment
+Bundle-SymbolicName: eshop.checkout.fragment
+Bundle-Version: 1.0.0
+Fragment-Host: com.liferay.commerce.checkout.web;bundle-version="4.0.24"
+Portal-Bundle-Version: 7.3.10

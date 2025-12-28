@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!DOCTYPE resource-action-mapping PUBLIC "-//Liferay//DTD Resource Action  
+Mapping 7.1.0//EN" "http://www.liferay.com/dtd/liferay-resource-action-mapping_7_1_0.dtd">
+
+<resource-action-mapping>
+
+	<model-resource>
+		<model-name>parameter.permission.resources</model-name>
+		<portlet-ref>
+			<portlet-name>Parameter_Portlet</portlet-name>
+		</portlet-ref>
+		<permissions>
+			<supports>
+				<action-key>ADD_PARAMETER</action-key>
+				<action-key>EDIT_PARAMETER</action-key>
+				<action-key>DELETE_PARAMETER</action-key>
+				<action-key>ADD_GROUPS</action-key>
+				<action-key>EDIT_GROUPS</action-key>
+				<action-key>DELETE_GROUPS</action-key>
+				<action-key>VIEW_PARAMETER</action-key>
+				<action-key>CONFIGURATION</action-key>
+			</supports>
+			<site-member-defaults />
+
+			<guest-unsupported>
+				<action-key>VIEW</action-key>
+			</guest-unsupported>
+		</permissions>
+	</model-resource>
+
+</resource-action-mapping>

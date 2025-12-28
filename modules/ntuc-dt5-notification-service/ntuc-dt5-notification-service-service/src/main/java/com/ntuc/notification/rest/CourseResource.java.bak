@@ -1,0 +1,78 @@
+package com.ntuc.notification.rest;
+
+import com.liferay.oauth2.provider.scope.RequiresScope;
+import com.ntuc.notification.model.CourseEventList;
+import com.ntuc.notification.rest.internal.dto.CourseRestDtos;
+import com.ntuc.notification.rest.internal.processor.CourseRestProcessor;
+
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.jaxrs.whiteboard.JaxrsWhiteboardConstants;
+
+@Path("/notify")
+@RequiresScope({"Course.REST.everything", "Course.REST.everything.write"})
+@Component(
+    property = {
+        JaxrsWhiteboardConstants.JAX_RS_RESOURCE + "=true",
+        JaxrsWhiteboardConstants.JAX_RS_APPLICATION_SELECT + "=("
+            + JaxrsWhiteboardConstants.JAX_RS_NAME + "=Course.REST)"
+    },
+    service = CourseResource.class
+)
+public class CourseResource {
+
+    @Reference
+    private CourseRestProcessor _courseRestProcessor;
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postCourse(CourseEventList wrapper) {
+        if (wrapper == null) {
+            throw new BadRequestException("Request body must be a JSON array of CourseEvent");
+        }
+        return _courseRestProcessor.postCourse(wrapper);
+    }
+
+    @GET
+    @Path("{courseCode}/schedules")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getLatestSchedule(@PathParam("courseCode") String courseCode) {
+        return _courseRestProcessor.getLatestSchedule(courseCode);
+    }
+
+    @POST
+    @Path("/oneTimeLoad")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response postOneTimeLoad(CourseRestDtos.OneTimeLoadRequest req) {
+        return _courseRestProcessor.postOneTimeLoad(req);
+    }
+
+    @POST
+    @Path("/subscriptions/dummy")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response subscriptionsDummy(CourseRestDtos.ProductCodeRequest req) {
+        String code = (req == null) ? null : req.productCode;
+        return _courseRestProcessor.subscriptionsDummy(code);
+    }
+
+    @POST
+    @Path("/courses/dummy")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response coursesDummy(CourseRestDtos.CourseCodeRequest req) {
+        String code = (req == null) ? null : req.courseCode;
+        return _courseRestProcessor.coursesDummy(code);
+    }
+}

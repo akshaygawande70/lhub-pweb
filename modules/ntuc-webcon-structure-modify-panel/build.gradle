@@ -1,0 +1,9 @@
+dependencies {
+	compileOnly group: "com.liferay.portal", name: "release.dxp.api"
+
+	cssBuilder group: "com.liferay", name: "com.liferay.css.builder", version: "3.1.4"
+	
+	compileOnly group: 'javax.mail', name: 'mail', version: '1.4.1'
+    compileOnly group: 'com.liferay.portal', name: 'com.liferay.util.java', version: '2.0.1'
+	compileOnly group: 'com.liferay', name: 'com.liferay.petra.string', version: '3.2.0'
+}

@@ -1,0 +1,37 @@
+<section class="breadcrumb-categories">
+    <div class="container">
+        <#if entries?has_content>
+            <#list entries as curCPCatalogEntry>
+                <#assign cpDefinitionId=curCPCatalogEntry.getCPDefinitionId() />
+                <#assign name=curCPCatalogEntry.getName() />
+                <#assign image=curCPCatalogEntry.getDefaultImageFileUrl() />
+                <#assign desc=curCPCatalogEntry.getDescription() />
+                <#assign shdesc=curCPCatalogEntry.getShortDescription() />
+                <#assign cpInstanceId=curCPCatalogEntry.getCProductId() />
+                <#assign
+                    AssetEntryLocalService=serviceLocator.findService("com.liferay.asset.kernel.service.AssetEntryLocalService") />
+                <#assign
+                    getEntry=AssetEntryLocalService.fetchEntry("com.liferay.commerce.product.model.CPDefinition",cpDefinitionId) />
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="box-breadcrumb">
+                            <@liferay_ui["breadcrumb"] />
+                            <ul class="addbread">
+                                <li>
+                                    <#list getEntry.getCategories() as cat>
+                                        <a href="/e-shop?category=${cat.categoryId}">
+                                            <span class="ct-bread">${cat.name}</span>
+                                        </a>
+                                    </#list>
+                                </li>
+                                <li>
+                                    <span>${name}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </#list>
+        </#if>
+    </div>
+</section>

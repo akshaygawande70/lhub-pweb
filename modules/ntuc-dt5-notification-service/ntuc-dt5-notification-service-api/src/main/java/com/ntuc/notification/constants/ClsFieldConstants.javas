@@ -1,0 +1,68 @@
+package com.ntuc.notification.constants;
+
+public final class ClsFieldConstants {
+
+    public static final String[] FIELD_CRITICAL = {
+    	    "courseCode",
+    	    "courseImgUrls[0].url",
+    	    "courseName",
+    	    "popular",
+    	    "funded",
+    	    "duration",
+    	    "whoAttend",
+    	    "courseAssessment",
+    	    "whatForMe",
+    	    "courseOverview",
+    	    "objective",
+    	    "prerequisites",
+    	    "price"
+    	};
+
+    public static final String[] FIELD_NONCRITICAL = {"outline",
+    	    "outlinePDFS3Url",
+    	    "certificateObtained",
+    	    "termsCondition",
+    	    "pricingTable",
+    	    "subsidy",
+    	    "fundingEligibilityCriteria",
+    	    "intakeOpenTo",
+    	    "courseCatalogueStatus",
+    	    "lxpScheduleUrl",
+    	    "additionalInfo",
+    	    };
+    public static final String[] FIELD_BATCH = {
+    		"courseCategory.categoryId",
+    	    "courseCategory.categoryName",
+    	    "courseType.courseTypeId",
+    	    "courseType.courseTypeName",
+    	    "areaOfInterest[0].areaOfInterestId",
+    	    "areaOfInterest[0].areaOfInterestName",
+    	    "areaOfInterest[1].areaOfInterestId",
+    	    "areaOfInterest[1].areaOfInterestName"
+    	    };
+    
+    public static final String[] FIELD_CRITICAL_SCHEDULE = {
+    	    "intakeNumber",
+    	    "startDate",
+    	    "endDate",
+    	    "duration.hours",
+    	    "duration.minutes",
+    	    "availability",
+    	    "availablePax",
+    	    "availableWaitlist",
+    	    "lxpBuyUrl",
+    	    "lxpRoiUrl"
+    	};
+
+    public static final String[] FIELD_NONCRITICAL_SCHEDULE = {
+    		"venue",
+    	    "description"
+    	    };
+    public static final String FIELD_BATCH_CRON_EXPRESSION_EVERY_FIVE_MINUTE = "0 0/2 * * * ?";
+    public static final String FIELD_BATCH_CRON_EXPRESSION_EVERY_MINUTE = "0 * * * * ?";
+
+    // Prevent instantiation
+    private ClsFieldConstants() {
+        throw new UnsupportedOperationException("This class cannot be instantiated");
+    }
+}

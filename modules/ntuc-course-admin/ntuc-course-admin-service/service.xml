@@ -1,0 +1,121 @@
+<?xml version="1.0"?>
+<!DOCTYPE service-builder PUBLIC "-//Liferay//DTD Service Builder 7.3.0//EN" "http://www.liferay.com/dtd/liferay-service-builder_7_3_0.dtd">
+
+<service-builder dependency-injector="ds"
+	package-path="svc.ntuc.nlh.course.admin">
+	<namespace>NTUC_COURSE_ADMIN</namespace>
+	<!--<entity data-source="sampleDataSource" local-service="true" name="Foo" 
+		remote-service="false" session-factory="sampleSessionFactory" table="foo" 
+		tx-manager="sampleTransactionManager uuid="true""> -->
+	<entity local-service="true" name="Course" remote-service="true"
+		uuid="true" table="ntuc_course">
+
+		<!-- PK fields -->
+
+		<column name="courseId" primary="true" type="long" />
+
+		<!-- Group instance -->
+
+		<column name="groupId" type="long" />
+
+		<!-- Audit fields -->
+
+		<column name="companyId" type="long" />
+		<column name="userId" type="long" />
+		<column name="userName" type="String" />
+		<column name="createDate" type="Date" />
+		<column name="modifiedDate" type="Date" />
+
+		<!-- Other fields -->
+
+		<column name="endDate" type="Date" />
+		<column name="venue" type="String" />
+		<column name="allowOnlinePayment" type="boolean" />
+		<column name="courseTitle" type="String" />
+		<column name="allowWebRegistration" type="boolean"/>
+		<column name="description" type="String"/>
+		<column name="availability" type="int" />
+		<column name="batchId" type="String"/>
+		<column name="webExpiry" type="Date" />
+		<column name="fundedCourseFlag" type="boolean" />
+		<column name="courseCode" type="String" />
+		<column name="courseDuration" type="Double" />
+		<column name="courseType" type="String" />
+		<column name="courseFee" type="Double" />
+		<column name="deleted" type="boolean" />
+		<column name="status" type="String" />
+		<column name="startDate" type="Date" />
+		<column name="updated" type="boolean" />
+		<column name="popular" type="boolean" />
+
+		<!-- Order -->
+
+		<order by="asc">
+			<order-column name="startDate" order-by="asc"/>
+		</order>
+
+		<!-- Finder methods -->
+
+		<finder name="CourseCode" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="courseCode" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="CourseTitle" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="courseTitle" />
+			<finder-column name="deleted" />
+		</finder>
+
+		<finder name="CourseCodeBatchIdActive" return-type="Course">
+			<finder-column name="groupId" />
+			<finder-column name="courseCode" />
+			<finder-column name="batchId" />
+			<finder-column name="deleted" />
+		</finder>
+		
+		<finder name="CourseCodeBatchId" return-type="Course">
+			<finder-column name="groupId" />
+			<finder-column name="courseCode" />
+			<finder-column name="batchId" />
+		</finder>
+		
+		<finder name="ActiveCourse" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="deleted" />
+		</finder>
+		
+		<finder name="ActiveCourseUpdated" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="deleted" />
+			<finder-column name="updated" />
+		</finder>
+		
+		<finder name="ActivePopularCourse" return-type="Collection">
+			<finder-column name="groupId" />
+			<finder-column name="deleted" />
+			<finder-column name="popular" />
+		</finder>
+
+		<!-- Reference to Group entity service -->
+
+		<reference entity="Group" package-path="com.liferay.portal"></reference>
+
+		<!-- Entity services needed for the integration to Asset framework -->
+
+		<reference entity="AssetEntry"
+			package-path="com.liferay.portlet.asset"></reference>
+		<reference entity="AssetLink"
+			package-path="com.liferay.portlet.asset"></reference>
+		<reference entity="AssetTag"
+			package-path="com.liferay.portlet.asset"></reference>
+	</entity>
+
+	<!-- Exceptions -->
+
+	<exceptions>
+		<exception>CourseValidation</exception>
+	</exceptions>
+
+</service-builder>

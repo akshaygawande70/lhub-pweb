@@ -1,0 +1,4 @@
+Bundle-Name: eshop-checkout-validator-web
+Bundle-SymbolicName: web.ntuc.eshop.checkout.validator
+Bundle-Version: 1.0.0
+Export-Package: web.ntuc.eshop.checkout.validator.constants
